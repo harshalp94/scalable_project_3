@@ -7,6 +7,17 @@ import socket
 import time
 import types
 
+def lookupDataSource(data_type):
+    return 0
+
+def addDataTypeToDictionary(data_type,source_host):
+    return 0
+#Initiates a transfer between to nodes
+def initiateTransfer(source_host,data_type,target_host):
+    return 0
+
+def processRequest(source_host, data_type):
+    return 0
 
 
 def sendData(command):

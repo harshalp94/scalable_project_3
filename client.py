@@ -7,7 +7,21 @@ import socket
 import time
 import types
 
+data_dictionary = {'cpu_temperature': 'None', 'gpu_temperature': 'None'}
+def getData(data_type):
+    requestData(data_type)
+    while(!data_dictionary[data_type]):
+        #
+    return data_dictionary[data_type]
 
+def requestData(data_type):
+    return 0
+
+def advertiseDataType(data_type):
+    return 0
+
+def processRequest(source_host, data_type, data):
+    return 0
 
 def sendData(command):
         """Send sensor data to all peers."""
