@@ -3,18 +3,38 @@
 import socket
 import threading
 import time
+from data_handler import *
 
-ROUTER_HOST = "10.35.70.30"
-ROUTER_PORT = 33005
-PI_PORT = ROUTER_PORT
-REQUESTING_ACTION = "requesting"
+RUNNING = True
 
 
 # Tell router what type of data we are producing, every x seconds
 def advertise(host, port, delay):
-    while True:
-        data = "Producing vehicle/speed"  # TODO make this change periodically
+    index = 0
+    while RUNNING:
+        datatype = DATA_TYPES[index]
+        data = encode_data(PRODUCING_ACTION, datatype)
+        print(f'Advertising producing {datatype} to {host}:{port}')
         send_raw_data(host, port, data)
+
+        index += 1
+        if index >= len(DATA_TYPES):
+            index = 0
+        time.sleep(delay)
+
+
+# Request data from the router every x seconds
+def requester(host, port, delay):
+    index = 0
+    while RUNNING:
+        datatype = DATA_TYPES[index]
+        print(f'Requesting {datatype} from {host}:{port}')
+        request = encode_data(REQUESTING_ACTION, datatype)
+        send_raw_data(host, port, request)
+
+        index += 1
+        if index >= len(DATA_TYPES):
+            index = 0
         time.sleep(delay)
 
 
@@ -35,21 +55,24 @@ def decode_request(data):
         return datatype, consumer_host, consumer_port
 
 
-def get_data(datatype):
-    return "VERY GOOD DATA"  # TODO return something more sensible
+def process_incoming_connection(data):
+    action, datatype, data = decode_data(data)
+    if action == SENDTO_ACTION:
+        requested_data = encode_data(datatype, "VERY GOOD DATA")  # TODO return smth more sensible
+        consumer_host = data['consumer_host']
+        consumer_port = data['consumer_port']
+        send_raw_data(consumer_host, consumer_port, requested_data)
+    elif action == SENDING_ACTION:
+        print(f'Received data of type {datatype}: {data}')
+    else:
+        print(f'Received unexpected action {action}')
 
 
-def process_data_request(data):
-    datatype, consumer_host, consumer_port = decode_request(data)
-    requested_data = get_data(datatype)
-    send_raw_data(consumer_host, consumer_port, requested_data)
-
-
-# Listen for data requests
+# Listen for data requests or incoming data
 def listen(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((host, port))
-        while True:
+        while RUNNING:
             s.listen()
             conn, addr = s.accept()
             with conn:
@@ -58,7 +81,7 @@ def listen(host, port):
                     data = conn.recv(1024)
                     if not data:
                         break
-                    process_data_request(data)
+                    process_incoming_connection(data.decode('utf-8'))
 
 
 def get_ip():
@@ -67,14 +90,24 @@ def get_ip():
 
 
 def main():
-    listener_thread = threading.Thread(target=listen, args=(get_ip(), PI_PORT))
-    listener_thread.start()
+    threads = [
+        # Listen for data requests from the router
+        threading.Thread(target=listen, args=(get_ip(), PI_PORT)),
+        # Tell the router what type of data we are collecting
+        threading.Thread(target=advertise, args=(ROUTER_HOST, ROUTER_PORT, 10)),
+        # Request data from other producers
+        threading.Thread(target=requester, args=(ROUTER_HOST, ROUTER_PORT, 10))
+    ]
 
-    advertising_thread = threading.Thread(target=advertise, args=(ROUTER_HOST, ROUTER_PORT, 10))
-    advertising_thread.start()
+    for thread in threads:
+        thread.start()
 
     # Run until user input
     input('Enter quit to stop program\n')
+    RUNNING = False
+    # Wait for threads to quit
+    for thread in threads:
+        thread.join()
 
 
 if __name__ == '__main__':
