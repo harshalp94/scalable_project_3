@@ -1,2 +1,1 @@
-# daivittuPujariSamooh
-Bahut dukh hai jeevan me. Itna mehnat karke marks nahi milte.
+To manipulate options at the sockets API level, level is specified as SOL_SOCKET
