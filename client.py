@@ -18,10 +18,7 @@ def getData(data_type):
     return data_dictionary[data_type]
 
 def requestData(data_type):
-    send(ROUTER_IP,ROUTER_PORT,'request:'+data_type)
-
-def advertiseDataType(data_type):
-    return 0
+    send(ROUTER_IP, ROUTER_PORT, 'request:'+data_type)
 
 def processRequest(source_host, data_type, data):
     data_dictionary[data_type] = data
