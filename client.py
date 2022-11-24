@@ -66,23 +66,10 @@ def listen():
 
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--command', help='Type of sensor', required=True)
-    # args = parser.parse_args()
-    command_name = ['vehicle/speed', 'vehicle/proximity', 'vehicle/tyre/pressure']
     while True:
         data_type = input("Enter data to fetch:")
         print(data_type + ": " + get_data(data_type))
         time.sleep(5)
-    # port_table = {'VehiclePort': 33401}  # Hardcoded port table for testing
-    # port = port_table['VehiclePort']     # The port used by the server
-
-    # sendData(command_name)
-    # initial_message = sensorType + " 1"
-    # byte_messages = [initial_message.encode('UTF-8')]
-
-    # The server's hostname or IP address
-    # host = socket.gethostbyname(socket.gethostname())
 
 
 if __name__ == '__main__':
