@@ -20,17 +20,17 @@ def base64decode(msg):
 
 
 def send(ip, port, msg):
-        peer = (ip, port)
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect(peer)
-            s.send(str(base64encode(msg)).encode())
-            answer = s.recv(1024)
-            s.close()
-            if answer:
-                return base64decode(answer.decode('utf-8'))
-            else:
-                return None
+    peer = (ip, port)
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect(peer)
+        s.send(str(base64encode(msg)).encode())
+        answer = s.recv(1024)
+        s.close()
+        if answer:
+            return base64decode(answer.decode('utf-8'))
+        else:
+            return None
         except Exception:
             print("Exception")
 
@@ -50,19 +50,11 @@ def listen():
             s.listen()
             conn, addr = s.accept()
             with conn:
-                print(f"Connected by {addr}")
                 while True:
                     data = conn.recv(1024)
                     if not data:
                         break
                     return data
-                    print('Message received from IP 1: ', addr)
-                    print('Data received is 1: ', data)
-                    new_data = data.decode('utf-8')
-                    data2 = new_data + " Jai Shree Ram"
-                    data3 = data2 + "Data appended by Amogh"
-                    data4 = send_data(data3, HOST, PORT)
-                    conn.sendall(data4)
 
 
 def main():
