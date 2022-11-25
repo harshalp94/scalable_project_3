@@ -1,2 +1,1 @@
-# daivittuPujariSamooh
-Bahut dukh hai jeevan me. Itna mehnat karke marks nahi milte.
+Scalable Group 15 code base 
