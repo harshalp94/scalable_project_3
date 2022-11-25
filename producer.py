@@ -7,6 +7,8 @@ from base_utils import *
 
 RUNNING = True
 VEHICLE_TYPE = "bike"
+# Data size threshold after which we use a direct peer transfer instead of going through the router
+LARGE_DATA_THRESHOLD = 20
 
 
 # Tell router what type of data we are producing, every x seconds
@@ -26,11 +28,11 @@ def advertise(delay):
         time.sleep(delay)
 
 
-# Send data using raw sockets
+# Send data using tcp sockets
 def send_raw_data(host, port, data):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
-        s.send(data.encode())
+        s.sendall(data.encode())
 
 
 def generate_data(datatype):
@@ -50,16 +52,18 @@ def listen():
 
                 data = conn.recv(1024)
                 data = decode_msg(data.decode())
-                # TODO might also have IP address for direct transfer
+                data, consumer_host, consumer_port = data.split(" ")
                 print(f'{data} was requested')
 
                 # Gather the data
                 [vehicle_type, datatype] = data.split('/')
-                if VEHICLE_TYPE == vehicle_type:
-                    data = generate_data(datatype)
-
-                # TODO if data is large, tell router, close connection and initiate direct HTTP transfer with consumer
-                send_data_back(conn, data)
+                data = generate_data(datatype) if VEHICLE_TYPE == vehicle_type else ""
+                if len(data) > LARGE_DATA_THRESHOLD:
+                    s.send(b"HTTP/1.1 413 Payload Too Large")
+                    # Send large data directly to peer on separate thread
+                    threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
+                else:
+                    send_data_back(conn, data)
 
 
 # Send requested data back to router on same connection

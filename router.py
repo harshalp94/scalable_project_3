@@ -149,13 +149,13 @@ class Peer:
             base64_decode = self.decrypt(utf_data)
             print("Base 64 decode data", base64_decode)
             # print(utf_data, " to actuate on")
-            interset = self.parse_interest(base64_decode.lower())
-            print("Final interset", interset)
-            filtered_ips = self.filter_ips(interset)
+            interest = self.parse_interest(base64_decode.lower())
+            print("Final interset", interest)
+            filtered_ips = self.filter_ips(interest)
             if filtered_ips is None:
-                self.send_none_to_intereseted_node(addr[0],conn)
+                self.send_none_to_intereseted_node(addr[0], conn)
             else:
-                ack = self.route_to_pi(filtered_ips, interset)
+                ack = self.route_to_pi(filtered_ips, interest, addr)
                 self.send_back_to_interested_node(ack, addr[0], conn)
             # call actuators
             # sendAck(addr[0], actuationResult)
@@ -182,7 +182,7 @@ class Peer:
         except:
             print("ERROR IN REMOVING NODE")
 
-    def route_to_pi(self, peer_list, command):
+    def route_to_pi(self, peer_list, command, consumer_address):
         """Send sensor data to all peers."""
         sent = False
         # if command == 'ALERT':
@@ -192,7 +192,8 @@ class Peer:
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((peer, PEER_PORT))
-                msg = command
+                # Also sending along host and port of consumer, in case of direct connection
+                msg = f'{command} {consumer_address[0]} {consumer_address[1]}'
                 print("Idhar aaya kya", msg)
                 s.send(str(self.encrypt(msg)).encode())
                 print("Sent command", msg)
