@@ -3,34 +3,22 @@
 import socket
 import threading
 import time
-from data_handler import *
+from base_utils import *
 
 RUNNING = True
+VEHICLE_TYPE = "bike"
 
 
 # Tell router what type of data we are producing, every x seconds
-def advertise(host, port, delay):
+def advertise(delay):
     index = 0
     while RUNNING:
-        datatype = DATA_TYPES[index]
-        data = encode_data(PRODUCING_ACTION, datatype)
-        print(f'Advertising producing {datatype} to {host}:{port}')
-        send_raw_data(host, port, data)
-
-        index += 1
-        if index >= len(DATA_TYPES):
-            index = 0
-        time.sleep(delay)
-
-
-# Request data from the router every x seconds
-def requester(host, port, delay):
-    index = 0
-    while RUNNING:
-        datatype = DATA_TYPES[index]
-        print(f'Requesting {datatype} from {host}:{port}')
-        request = encode_data(REQUESTING_ACTION, datatype)
-        send_raw_data(host, port, request)
+        # TODO we can send multiple types of data at once
+        # We should also only send data of the same type as this vehicle
+        datatypes = DATA_TYPES[index]
+        data = f'HOST {get_host(socket)} PORT {PEER_PORT} ACTION {datatypes}'
+        print(f'Advertising producing {datatypes} to {ROUTER_HOST}:{ROUTER_PORT}')
+        send_raw_data(ROUTER_HOST, ROUTER_PORT, data)
 
         index += 1
         if index >= len(DATA_TYPES):
@@ -40,63 +28,54 @@ def requester(host, port, delay):
 
 # Send data using raw sockets
 def send_raw_data(host, port, data):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((host, port))
-    s.send(data.encode())
-    data4 = s.recv(1024)
-    return data4
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((host, port))
+        s.send(data.encode())
 
 
-def decode_request(data):
-    action, datatype, consumer_host, consumer_port = data.decode('utf-8').split()
-    if action != REQUESTING_ACTION:
-        raise Exception(f'Expected {REQUESTING_ACTION} got {action} instead')
-    else:
-        return datatype, consumer_host, consumer_port
-
-
-def process_incoming_connection(data):
-    action, datatype, data = decode_data(data)
-    if action == SENDTO_ACTION:
-        requested_data = encode_data(datatype, "VERY GOOD DATA")  # TODO return smth more sensible
-        consumer_host = data['consumer_host']
-        consumer_port = data['consumer_port']
-        send_raw_data(consumer_host, consumer_port, requested_data)
-    elif action == SENDING_ACTION:
-        print(f'Received data of type {datatype}: {data}')
-    else:
-        print(f'Received unexpected action {action}')
+def generate_data(datatype):
+    # TODO return something more relevant
+    return "VERY GOOD DATA"
 
 
 # Listen for data requests or incoming data
-def listen(host, port):
+def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((host, port))
+        s.bind((get_host(socket), PEER_PORT))
         while RUNNING:
             s.listen()
             conn, addr = s.accept()
             with conn:
                 print(f"Connection started by {addr}")
-                while True:
-                    data = conn.recv(1024)
-                    if not data:
-                        break
-                    process_incoming_connection(data.decode('utf-8'))
+
+                data = conn.recv(1024)
+                data = decode_msg(data.decode())
+                # TODO might also have IP address for direct transfer
+                print(f'{data} was requested')
+
+                # Gather the data
+                [vehicle_type, datatype] = data.split('/')
+                if VEHICLE_TYPE == vehicle_type:
+                    data = generate_data(datatype)
+
+                # TODO if data is large, tell router, close connection and initiate direct HTTP transfer with consumer
+                send_data_back(conn, data)
 
 
-def get_ip():
-    hostname = socket.gethostname()
-    return socket.gethostbyname(hostname)
+# Send requested data back to router on same connection
+def send_data_back(conn, data):
+    try:
+        conn.send(encode_msg(data).encode())
+    except Exception as e:
+        print(f'Exception while sending data to router: {e}')
 
 
 def main():
     threads = [
         # Listen for data requests from the router
-        threading.Thread(target=listen, args=(get_ip(), PI_PORT)),
+        threading.Thread(target=listen, args=()),
         # Tell the router what type of data we are collecting
-        threading.Thread(target=advertise, args=(ROUTER_HOST, ROUTER_PORT, 10)),
-        # Request data from other producers
-        threading.Thread(target=requester, args=(ROUTER_HOST, ROUTER_PORT, 10))
+        threading.Thread(target=advertise, args=(10,)),
     ]
 
     for thread in threads:
@@ -104,6 +83,7 @@ def main():
 
     # Run until user input
     input('Enter quit to stop program\n')
+    global RUNNING
     RUNNING = False
     # Wait for threads to quit
     for thread in threads:
