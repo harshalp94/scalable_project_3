@@ -52,13 +52,18 @@ def listen():
 
                 data = conn.recv(1024)
                 data = decode_msg(data.decode())
-                data, consumer_host, consumer_port = data.split(" ")
+                split_data = data.split()
+                if split_data > 2:
+                    data, consumer_host, consumer_port = split_data
                 print(f'{data} was requested')
 
                 # Gather the data
                 [vehicle_type, datatype] = data.split('/')
                 data = generate_data(datatype) if VEHICLE_TYPE == vehicle_type else ""
-                if len(data) > LARGE_DATA_THRESHOLD:
+
+                # If data too large send p2p to consumer
+                # We check we were sent IP to be compatible with common protocol
+                if split_data > 2 and len(data) > LARGE_DATA_THRESHOLD:
                     s.send(b"HTTP/1.1 413 Payload Too Large")
                     # Send large data directly to peer on separate thread
                     threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
