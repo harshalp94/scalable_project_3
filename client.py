@@ -8,7 +8,6 @@ ROUTER_IP='127.0.0.1'
 ROUTER_REQUEST_PORT=33301
 CLIENT_IP='127.0.0.1'
 LISTEN_PORT=33302
-data_dictionary = {'cpu_temperature': 'None', 'gpu_temperature': 'None'}
 
 
 def base64encode(msg):
@@ -31,8 +30,8 @@ def send(ip, port, msg):
             return base64decode(answer.decode('utf-8'))
         else:
             return None
-        except Exception:
-            print("Exception")
+    except Exception:
+        print("Exception")
 
 
 def get_data(data_type):
