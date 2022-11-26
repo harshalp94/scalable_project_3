@@ -31,6 +31,7 @@ def advertise(delay):
 # Send data using tcp sockets
 def send_raw_data(host, port, data):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(3)
         s.connect((host, port))
         s.sendall(data.encode())
 
@@ -45,7 +46,7 @@ def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((get_host(socket), PEER_PORT))
         while RUNNING:
-            s.listen()
+            s.listen()  # TODO make non-blocking to be able to stop threads
             conn, addr = s.accept()
             with conn:
                 print(f"Connection started by {addr}")
@@ -53,7 +54,7 @@ def listen():
                 data = conn.recv(1024)
                 data = decode_msg(data.decode())
                 split_data = data.split()
-                if split_data > 2:
+                if len(split_data) > 2:
                     data, consumer_host, consumer_port = split_data
                 print(f'{data} was requested')
 
@@ -63,7 +64,7 @@ def listen():
 
                 # If data too large send p2p to consumer
                 # We check we were sent IP to be compatible with common protocol
-                if split_data > 2 and len(data) > LARGE_DATA_THRESHOLD:
+                if len(split_data) > 2 and len(data) > LARGE_DATA_THRESHOLD:
                     s.send(b"HTTP/1.1 413 Payload Too Large")
                     # Send large data directly to peer on separate thread
                     threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
@@ -91,7 +92,11 @@ def main():
         thread.start()
 
     # Run until user input
-    input('Enter quit to stop program\n')
+    try:
+        input('Enter quit to stop program\n')
+    except KeyboardInterrupt:
+        pass
+
     global RUNNING
     RUNNING = False
     # Wait for threads to quit
