@@ -6,7 +6,7 @@ import time
 from base_utils import *
 
 RUNNING = True
-VEHICLE_TYPE = "ebike"
+VEHICLE_TYPE = VEHICLES[0]
 
 
 # Tell router what type of data we are producing, every x seconds
@@ -15,11 +15,11 @@ def advertise(delay):
     while RUNNING:
         # TODO we can send multiple types of data at once, comma-delimited
         # We should also only send data of the same type as this vehicle
-        datatypes = DATA_TYPES[index]
+        datatypes = VEHICLE_TYPE + "/" + DATA_TYPES[VEHICLE_TYPE][index]
         data = f'HOST {get_host(socket)} PORT {PRODUCER_PORT} ACTION {datatypes}'
-        print(f'Advertising producing {datatypes} to {ROUTER_HOST}:{ROUTER_PORT}')
+        print(f'Advertising producing {datatypes}')
         try:
-            send_raw_data(ROUTER_HOST, ROUTER_PORT, data)
+            send_advertising_data(ROUTER_TUPLE, data)
         except Exception as e:
             print(f"Failed to advertise {e}")
 
@@ -29,12 +29,31 @@ def advertise(delay):
         time.sleep(delay)
 
 
+def send_advertising_data(ROUTER_TUPLE, data):
+    for tries in range(2):
+        try:
+            router_host, router_port = ROUTER_TUPLE[tries]
+            print(f'Advertising to {router_host}:{router_port}')
+            send_raw_data(router_host, router_port, data)
+            break
+        except Exception:
+            continue
+
+
 # Send data using tcp sockets
 def send_raw_data(host, port, data):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(3)
         s.connect((host, port))
         s.sendall(data.encode())
+
+
+# Send requested data back to router on same connection
+def send_data_back(conn, data):
+    try:
+        conn.send(encode_msg(data).encode())
+    except Exception as e:
+        print(f'Exception while sending data to router: {e}')
 
 
 def generate_data(datatype):
@@ -77,14 +96,6 @@ def listen():
                         print("We sent the data back:", data)
             except TimeoutError:
                 continue
-
-
-# Send requested data back to router on same connection
-def send_data_back(conn, data):
-    try:
-        conn.send(encode_msg(data).encode())
-    except Exception as e:
-        print(f'Exception while sending data to router: {e}')
 
 
 def main():

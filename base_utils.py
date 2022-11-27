@@ -2,6 +2,7 @@ import base64
 
 # ROUTER_HOST = '10.35.70.24' # For testing on Pi
 ROUTER_HOST = '127.0.0.1'  # For testing locally
+ROUTER_IP_1 = '10.35.70.31'
 ROUTER_PORT = 33334
 ROUTER_INTEREST_PORT = 33310
 
@@ -12,7 +13,21 @@ CONSUMER_PORT = 33302  # Port consumer expects requested data to come in from
 LARGE_DATA_THRESHOLD = 20
 PAYLOAD_TOO_LARGE_STRING = "HTTP/1.1 413 Payload Too Large"
 
-DATA_TYPES = ["ebike/speed", "ebike/engine_temp", "ebike/battery_temp"]
+ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_PORT), (ROUTER_IP_1, ROUTER_PORT)]
+INTEREST_ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_INTEREST_PORT), (ROUTER_IP_1, ROUTER_INTEREST_PORT)]
+VEHICLES = ['bus', 'train', 'tram', 'metro', 'taxi']
+DATA_TYPES = dict(
+    bus=['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination', 'ambient_temperature',
+         'fuel_sensor'],
+    tram=['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+          'ambient_temperature', 'track_temperature'],
+    taxi=['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+          'ambient_temperature', 'fuel_sensor'],
+    train=['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+           'ambient_temperature', 'fuel_sensor', 'locomotive', 'track_temperature'],
+    metro=['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+           'ambient_temperature', 'locomotive', 'track_temperature']
+)
 
 
 def get_host(socket):

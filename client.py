@@ -2,17 +2,16 @@
 
 import socket
 import threading
-
 from base_utils import *
 
 RUNNING = True
 
 
-def send(ip, port, msg):
-    peer = (ip, port)
+def send(msg):
     try:
+        router_host, router_port = INTEREST_ROUTER_TUPLE[0]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(peer)
+        s.connect((router_host, router_port))
         s.send(str(encode_msg(msg)).encode())
         answer = s.recv(1024)
         s.close()
@@ -20,12 +19,21 @@ def send(ip, port, msg):
             return decode_msg(answer.decode('utf-8'))
         else:
             return None
-    except Exception as e:
-        print("Exception", e)
+    except Exception:
+        router_host, router_port = INTEREST_ROUTER_TUPLE[1]
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((router_host, router_port))
+        s.send(str(encode_msg(msg)).encode())
+        answer = s.recv(1024)
+        s.close()
+        if answer:
+            return decode_msg(answer.decode('utf-8'))
+        else:
+            return None
 
 
-def get_data(data_type):
-    answer = send(ROUTER_HOST, ROUTER_INTEREST_PORT, data_type)
+def request_data(data_type):
+    answer = send(data_type)
     if answer == PAYLOAD_TOO_LARGE_STRING:
         print("Data too large, waiting for direct connection")
         # TODO we might want to store that we requested this data type in a set, and remove it once received
@@ -51,6 +59,7 @@ def listen():
                 continue
 
 
+# TODO this is where we would do something fancy with the received data
 def process_data(data):
     print(f'Received data {data}')
 
@@ -62,8 +71,18 @@ def main():
     global RUNNING
     while RUNNING:
         try:
-            data_type = input("Enter data to fetch: ")
-            get_data(data_type)
+            vehicle = input("Enter vehicle to gather data about (help for possible types): ")
+            while vehicle not in VEHICLES:
+                print("Possible vehicles: " + ', '.join(str(e) for e in VEHICLES))
+                vehicle = input("Enter vehicle to gather data about (help for possible types):")
+            data_type = input("Enter data to gather (help for possible types): ")
+            vehicle_data_types = DATA_TYPES[vehicle]
+            while data_type not in vehicle_data_types:
+                print("Possible data types: " + ', '.join(str(e) for e in vehicle_data_types))
+                data_type = input("Enter data type (help for possible types): ")
+
+            data_name = f'{vehicle}/{data_type}'
+            request_data(data_name)
         except KeyboardInterrupt:
             RUNNING = False
 

@@ -1,11 +1,11 @@
 import socket
 import threading
-import time
 
 from base_utils import *
 
 RUNNING = True
 map_dict = {}
+
 
 def tabular_display(temp_dict):
     print("{:<25} | {:<15}".format('ACTION', 'IP_ADDR'))
@@ -28,8 +28,8 @@ class Peer:
         while RUNNING:
             try:
                 conn, addr = s.accept()
-                #print("BRaddr: ", addr[0])
-                #print("BRconnection: ", str(conn))
+                # print("BRaddr: ", addr[0])
+                # print("BRconnection: ", str(conn))
                 data = conn.recv(1024)
                 # #print("Base 64 decode data updat peer", data)
                 # base64_decode_data = self.decode(data)
@@ -79,44 +79,15 @@ class Peer:
         # new_ls = temp_str.split(',')
         return str(temp_str)
 
-    # def receiveData(self):
-    #     """Listen on own port for other peer data."""
-    #     print("listening for interest data")
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     hostname = socket.gethostname()
-    #     host = socket.gethostbyname(hostname)
-    #     port = INTEREST_PORT
-    #     s.bind((host, port))
-    #     s.listen(5)
-    #     while True:
-    #         conn, addr = s.accept()
-    #         print("addr: ", addr[0])
-    #         print("connection: ", str(conn))
-    #         data = conn.recv(1024)
-    #         base64_decode = self.decrypt(data)
-    #         utf_data = base64_decode.decode('utf-8')
-    #         print(utf_data, " to actuate on")
-    #         interset = self.parse_interest(utf_data.lower())
-    #         print("Final interset", interset)
-    #         filtered_ips = self.filter_ips(interset)
-    #         ack = self.route_to_pi(filtered_ips, interset)
-    #         self.send_back_to_interested_node(ack, addr[0], conn)
-    #         # call actuators
-    #         # sendAck(addr[0], actuationResult)
-    #         conn.close()
-    #         time.sleep(1)
-
     def send_none_to_interested_node(self, host, conn):
         msg = "404 not found"
         encoded_msg = str(encode_msg(msg)).encode()
-        print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
         conn.send(encoded_msg)
         return
-        
 
     def receiveData(self):
         """Listen on own port for other peer data."""
-        print("listening for interest data")
+        print("Listening for data requests...")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(('', ROUTER_INTEREST_PORT))
         s.settimeout(3)
@@ -137,6 +108,7 @@ class Peer:
                 print("Final interest", interest)
                 filtered_ips = self.filter_ips(interest)
                 if filtered_ips is None:
+                    print("Data not found!")
                     self.send_none_to_interested_node(addr[0], conn)
                 else:
                     received_data = self.route_to_pi(filtered_ips, interest, addr)
@@ -201,8 +173,6 @@ class Peer:
                     temp_set = map_dict[action]
                     temp_set.add(host)
                     map_dict[action] = temp_set
-
-
                 else:
                     empty_set.add(host)
                     map_dict[action] = empty_set
@@ -218,21 +188,23 @@ def main():
     threads = [
         threading.Thread(target=peer.updatePeerList),
         threading.Thread(target=peer.receiveData)
-               ]
+    ]
 
     for thread in threads:
         thread.start()
 
     # Run until user input
+    global RUNNING
     try:
-        input('Enter quit or press Ctrl-C to stop program\n')
+        while RUNNING:
+            pass
+        #input('Enter quit or press Ctrl-C to stop program\n')
     except KeyboardInterrupt:
         pass
 
     print("Shutting down, please wait 3 seconds...")
 
     # Make sure we release socket binds properly
-    global RUNNING
     RUNNING = False
     # Wait for threads to quit
     for thread in threads:
