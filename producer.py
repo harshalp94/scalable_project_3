@@ -31,6 +31,7 @@ def advertise(delay):
 
 def check_connection(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(3)
         s.connect((host, port))
 
 
@@ -61,7 +62,7 @@ def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((get_host(socket), PRODUCER_LISTENING_PORT))
         while RUNNING:
-            s.listen()
+            s.listen()  # TODO make non-blocking to be able to stop threads
             conn, addr = s.accept()
             with conn:
                 print(f"Connection started by {addr}")
@@ -107,7 +108,11 @@ def main():
         thread.start()
 
     # Run until user input
-    input('Enter quit to stop program\n')
+    try:
+        input('Enter quit to stop program\n')
+    except KeyboardInterrupt:
+        pass
+
     global RUNNING
     RUNNING = False
     # Wait for threads to quit

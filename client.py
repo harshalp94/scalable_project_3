@@ -6,7 +6,7 @@ import time
 from base_utils import *
 
 ROUTER_IP='127.0.0.1'
-ROUTER_REQUEST_PORT=33301
+ROUTER_REQUEST_PORT=33310
 CLIENT_IP='127.0.0.1'
 LISTEN_PORT=33302
 
@@ -68,8 +68,34 @@ def listen():
 
 def main():
     while True:
-        data_type = input("Enter data to fetch:")
-        print(data_type + ": " + get_data(data_type))
+        vehicle = input("Enter vehicle to gather data about (help for possible types):")
+        vehicles = ['bus', 'train', 'tram', 'metro', 'taxi']
+        while vehicle not in vehicles:
+            print("Possible vehicles: " + ', '.join(str(e) for e in vehicles))
+            vehicle = input("Enter vehicle to gather data about (help for possible types):")
+        data_type = input("Enter data to gather (help for possible types):")
+        match vehicle:
+            case 'bus':
+                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+                              'ambient_temperature', 'fuel_sensor']
+            case 'tram':
+                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+                              'ambient_temperature', 'track_temperature']
+            case 'taxi':
+                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+                              'ambient_temperature', 'fuel_sensor']
+            case 'train':
+                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+                              'ambient_temperature', 'fuel_sensor', 'locomotive', 'track_temperature']
+            case 'metro':
+                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
+                              'ambient_temperature', 'locomotive', 'track_temperature']
+        while data_type not in data_types:
+            print("Possible data types: " + ', '.join(str(e) for e in data_types))
+            data_type = input("Enter data type (help for possible types):")
+
+        data_name = vehicle + data_type
+        print(data_name + ": " + get_data(data_name))
         time.sleep(5)
 
 
