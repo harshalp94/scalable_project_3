@@ -1,11 +1,13 @@
 import base64
 
-ROUTER_HOST = '10.35.70.24'
+ROUTER_HOST = '10.35.70.30'
+ROUTER_IP_1 = '10.35.70.31'
+
 ROUTER_PORT = 33334
 PEER_PORT = 33301  # Port for listening to other peers
 SENSOR_PORT = 33401  # Port for listening to other sensors
-
-DATA_TYPES = ["ebike/speed", "ebike/engine_temp", "ebike/battery_temp"]
+ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_PORT), (ROUTER_IP_1, ROUTER_PORT)]
+DATA_TYPES = ["bike/speed", "bike/engine_temp", "bike/battery_temp"]
 
 
 def get_host(socket):
