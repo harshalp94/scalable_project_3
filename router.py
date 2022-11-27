@@ -2,6 +2,8 @@ import socket
 import threading
 import time
 import base64
+from cryptography.fernet import Fernet
+from base_utils import *
 
 PEER_PORT = 33301  # Port for listening to other peers
 BCAST_PORT = 33334  # Port for broadcasting own address
@@ -9,6 +11,7 @@ INTEREST_PORT = 33310
 
 map_dict = {}
 
+cipher_suite = Fernet(ENCRYPTION_KEY)
 
 def tabular_display(temp_dict):
     print("{:<25} | {:<15}".format('ACTION', 'IP_ADDR'))
@@ -144,6 +147,8 @@ class Peer:
             print("connection: ", str(conn))
             data = conn.recv(1024)
             print("Received data", data)
+            data = cipher_suite.decrypt(data)
+            print("Data After Decryption", data)
             utf_data = data.decode()
             print("Decoded data", utf_data)
             base64_decode = self.decrypt(utf_data)

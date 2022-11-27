@@ -11,6 +11,7 @@ ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_PORT), (ROUTER_IP_1, ROUTER_PORT)]
 INTEREST_ROUTER_TUPLE = [(ROUTER_HOST, PEER_PORT), (ROUTER_IP_1, PEER_PORT)]
 DATA_TYPES = ["bike/speed", "bike/engine_temp", "bike/battery_temp"]
 
+ENCRYPTION_KEY = b'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='
 
 def get_host(socket):
     """Get Pi's hostname from current socket"""
