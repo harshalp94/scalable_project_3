@@ -3,6 +3,7 @@
 import socket
 import threading
 import time
+import random
 from base_utils import *
 
 RUNNING = True
@@ -36,9 +37,61 @@ def send_raw_data(host, port, data):
         s.sendall(data.encode())
 
 
+def generate_boolean():
+    return random.choice('True', 'False')
+
+
+def generate_destination():
+    return random.choice('Harbour', 'City Hall', 'College')
+
+
+def generate_temperature():
+    return str(random.randint(-10, 40))
+
+
+def generate_track_position():
+    return str(random.randint(0, 99)) + '/' + str(random.randint(0, 99))
+
+
+def generate_gps_position():
+    return str(random.randint(-9000, 9000)/100) + ',' + str(random.randint(-9000, 9000)/100)
+
+
+def generate_percentage():
+    return str(random.randint(0, 100)) + '%'
+
+
+def generate_integer():
+    return str(random.randint(0, 300))
+
+
 def generate_data(datatype):
-    # TODO return something more relevant
-    return "VERY GOOD DATA"
+    [vehicle, specific_type] = datatype.split('/')
+    if specific_type == 'waiting':
+        return generate_boolean()
+    elif specific_type == 'maintain':
+        return generate_boolean()
+    elif specific_type == 'in_service':
+        return generate_boolean()
+    elif specific_type == 'ambient_temperature':
+        return generate_temperature()
+    elif specific_type == 'track_temperature':
+        return generate_temperature()
+    elif specific_type == 'locomotive':
+        return generate_boolean()
+    elif specific_type == 'position':
+        if vehicle == 'train' | vehicle == 'metro' | vehicle == 'tram':
+            return generate_track_position()
+        else:
+            return generate_gps_position()
+    elif specific_type == 'fuel':
+        return generate_percentage()
+    elif specific_type == 'passengers':
+        return generate_integer()
+    elif specific_type == 'destination':
+        return generate_destination()
+    else:
+        print('Error: data type ' + datatype + ' not known')
 
 
 # Listen for data requests or incoming data
