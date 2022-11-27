@@ -126,7 +126,7 @@ class Peer:
 
     def send_none_to_intereseted_node(self,host,conn):
         msg = "404 not found"
-        encoded_msg = str(self.encrypt(msg)).encode()
+        encoded_msg = cipher_suite.encrypt(str(self.encrypt(msg)).encode())
         print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
         conn.send(encoded_msg)
         return
@@ -173,7 +173,7 @@ class Peer:
         # s.connect((host,INTEREST_PORT))
         msg = message
         print("Idhar aaya kya", msg)
-        encoded_msg = str(self.encrypt(msg)).encode()
+        encoded_msg = cipher_suite.encrypt(str(self.encrypt(msg)).encode())
         print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
         conn.send(encoded_msg)
         return
@@ -200,10 +200,11 @@ class Peer:
                 # Also sending along host and port of consumer, in case of direct connection
                 msg = f'{command} {consumer_address[0]} {consumer_address[1]}'
                 print("Idhar aaya kya", msg)
-                s.send(str(self.encrypt(msg)).encode())
+                s.send(cipher_suite.encrypt(str(self.encrypt(msg)).encode()))
                 print("Sent command", msg)
                 sent = True
                 ack = s.recv(1024)
+                ack = cipher_suite.decrypt(ack)
                 print("Acknowledgement received", ack)
                 utf_decode = ack.decode()
                 base64_ack = self.decrypt(utf_decode)

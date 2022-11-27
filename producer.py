@@ -4,12 +4,14 @@ import socket
 import threading
 import time
 from base_utils import *
+from cryptography.fernet import Fernet
 
 RUNNING = True
 VEHICLE_TYPE = "bike"
 # Data size threshold after which we use a direct peer transfer instead of going through the router
 LARGE_DATA_THRESHOLD = 100
 
+cipher_suite = Fernet(ENCRYPTION_KEY)
 
 # Tell router what type of data we are producing, every x seconds
 def advertise(delay):
@@ -43,13 +45,13 @@ def send_raw_data(ROUTER_TUPLE, data):
         print(f'Advertising producing {data} to {router_host}:{router_port}')
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((router_host, router_port))
-        s.sendall(data.encode())
+        s.sendall(cipher_suite.encrypt(data.encode()))
     except Exception as exp:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         router_host, router_port = ROUTER_TUPLE[1]
         print(f'Advertising producing {data} to {router_host}:{router_port}')
         s.connect((router_host, router_port))
-        s.sendall(data.encode())
+        s.sendall(cipher_suite.encrypt(data.encode()))
 
 
 def generate_data(datatype):
@@ -68,6 +70,7 @@ def listen():
                 print(f"Connection started by {addr}")
 
                 data = conn.recv(1024)
+                data = cipher_suite.decrypt(data)
                 data = decode_msg(data.decode())
                 split_data = data.split()
                 if len(split_data) > 2:
