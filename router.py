@@ -1,11 +1,16 @@
 import socket
 import threading
+import time
+import base64
+from cryptography.fernet import Fernet
+from base_utils import *
 
 from base_utils import *
 
 RUNNING = True
 map_dict = {}
 
+cipher_suite = Fernet(ENCRYPTION_KEY)
 
 def tabular_display(temp_dict):
     print("{:<25} | {:<15}".format('ACTION', 'IP_ADDR'))
@@ -31,6 +36,7 @@ class Peer:
                 # print("BRaddr: ", addr[0])
                 # print("BRconnection: ", str(conn))
                 data = conn.recv(1024)
+                data = cipher_suite.decrypt(data)
                 # #print("Base 64 decode data updat peer", data)
                 # base64_decode_data = self.decode(data)
                 # print("Base 64 decode data updat peer", base64_decode_data)
@@ -81,7 +87,7 @@ class Peer:
 
     def send_none_to_interested_node(self, host, conn):
         msg = "404 not found"
-        encoded_msg = str(encode_msg(msg)).encode()
+        encoded_msg = cipher_suite.encrypt(str(encode_msg(msg)).encode())
         conn.send(encoded_msg)
         return
 
@@ -99,6 +105,8 @@ class Peer:
                 print("connection: ", str(conn))
                 data = conn.recv(1024)
                 print("Received data", data)
+                data = cipher_suite.decrypt(data)
+                print("Data After Decryption", data)
                 utf_data = data.decode()
                 print("Decoded data", utf_data)
                 base64_decode = decode_msg(utf_data)
@@ -120,7 +128,7 @@ class Peer:
     def send_back_to_interested_node(self, message, host, conn):
         # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # s.connect((host,INTEREST_PORT))
-        encoded_msg = str(encode_msg(message)).encode()
+        encoded_msg = cipher_suite.encrypt(str(encode_msg(message)).encode())
         print(f'Sending data to consumer... {encoded_msg}')
         conn.send(encoded_msg)
         return
@@ -143,9 +151,10 @@ class Peer:
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((peer, PRODUCER_PORT_COMPAT))
-                encoded_message = str(encode_msg(command)).encode()
+                encoded_message = cipher_suite.encrypt(str(encode_msg(command)).encode())
                 s.send(encoded_message)
                 received_data = s.recv(1024)
+                received_data = cipher_suite.decrypt(received_data)
                 print("Data received:", received_data)
                 utf_decode = received_data.decode()
                 decoded_data = decode_msg(utf_decode)

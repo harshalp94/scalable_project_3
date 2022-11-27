@@ -3,8 +3,12 @@
 import socket
 import threading
 from base_utils import *
+from cryptography.fernet import Fernet
 
 RUNNING = True
+
+cipher_suite = Fernet(ENCRYPTION_KEY)
+
 
 requested_types = {}
 
@@ -14,8 +18,9 @@ def send(msg):
         router_host, router_port = INTEREST_ROUTER_TUPLE[0]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((router_host, router_port))
-        s.send(str(encode_msg(msg)).encode())
+        s.send(cipher_suite.encrypt(str(encode_msg(msg)).encode()))
         answer = s.recv(1024)
+        answer = cipher_suite.decrypt(answer)
         s.close()
         if answer:
             return decode_msg(answer.decode('utf-8'))
@@ -25,8 +30,9 @@ def send(msg):
         router_host, router_port = INTEREST_ROUTER_TUPLE[1]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((router_host, router_port))
-        s.send(str(encode_msg(msg)).encode())
+        s.send(cipher_suite.encrypt(str(encode_msg(msg)).encode()))
         answer = s.recv(1024)
+        answer = cipher_suite.decrypt(answer)
         s.close()
         if answer:
             return decode_msg(answer.decode('utf-8'))

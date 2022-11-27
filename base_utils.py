@@ -36,6 +36,7 @@ DATA_TYPES = dict(
            'ambient_temperature', 'locomotive', 'track_temperature']
 )
 
+ENCRYPTION_KEY = b'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='
 
 def get_host(socket):
     """Get Pi's hostname from current socket"""

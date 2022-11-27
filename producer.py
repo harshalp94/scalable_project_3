@@ -5,10 +5,12 @@ import threading
 import time
 import random
 from base_utils import *
+from cryptography.fernet import Fernet
 
 RUNNING = True
 VEHICLE_TYPE = VEHICLES[0]
 
+cipher_suite = Fernet(ENCRYPTION_KEY)
 
 # Tell router what type of data we are producing, every x seconds
 def advertise(delay):
@@ -46,7 +48,44 @@ def send_raw_data(host, port, data):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(3)
         s.connect((host, port))
-        s.sendall(data.encode())
+        s.sendall(cipher_suite.encrypt(data.encode()))
+
+# Listen for data requests
+def listen():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((get_host(socket), PRODUCER_PORT_COMPAT))
+        s.listen(5)
+        s.settimeout(3)
+        while RUNNING:
+            try:
+                conn, addr = s.accept()
+                with conn:
+                    print(f"Connection started by {addr}")
+
+                    raw_data = conn.recv(1024)
+                    raw_data = cipher_suite.decrypt(raw_data)
+                    print("Raw data received:", raw_data)
+                    data = decode_msg(raw_data.decode())
+                    split_data = data.split()
+                    if len(split_data) > 2:
+                        data, consumer_host, consumer_port = split_data
+                    print(f'Data {data} was requested')
+
+                # Gather the data
+                [vehicle_type, datatype] = data.split('/')
+                data = generate_data(datatype) if VEHICLE_TYPE == vehicle_type else ""
+
+                # If data too large send p2p to consumer
+                # We check we were sent IP to be compatible with common protocol
+                if len(split_data) > 2 and len(data) > LARGE_DATA_THRESHOLD:
+                    send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
+                    # Send large data directly to peer on separate thread
+                    threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
+                else:
+                    send_data_back(conn, data)
+                    print("We sent the data back:", data)
+            except TimeoutError:
+                continue
 
 
 
