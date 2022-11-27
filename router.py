@@ -22,7 +22,7 @@ class Peer:
     def updatePeerList(self):
         """Update peers list on receipt of their address broadcast."""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('', ROUTER_PORT))
+        s.bind(('', ROUTER_ADVERTISING_PORT_COMPAT))
         s.settimeout(3)
         s.listen(5)
         while RUNNING:
@@ -89,7 +89,7 @@ class Peer:
         """Listen on own port for other peer data."""
         print("Listening for data requests...")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('', ROUTER_INTEREST_PORT))
+        s.bind(('', ROUTER_REQUEST_PORT_COMPAT))
         s.settimeout(3)
         s.listen(5)
         while RUNNING:
@@ -139,10 +139,10 @@ class Peer:
         print("What is peer list and command :{} {}".format(peer_list, command))
         for peer in peer_list:
             print(f"Data requested by {consumer_address}")
-            print(f"Requesting {command} from {peer}:{PRODUCER_PORT}")
+            print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((peer, PRODUCER_PORT))
+                s.connect((peer, PRODUCER_PORT_COMPAT))
                 encoded_message = str(encode_msg(command)).encode()
                 s.send(encoded_message)
                 received_data = s.recv(1024)
@@ -183,7 +183,7 @@ class Peer:
 def main():
     hostname = socket.gethostname()
     host = socket.gethostbyname(hostname)
-    peer = Peer(host, PRODUCER_PORT)
+    peer = Peer(host, PRODUCER_PORT_COMPAT)
 
     threads = [
         threading.Thread(target=peer.updatePeerList),

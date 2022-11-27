@@ -44,7 +44,7 @@ def request_data(data_type):
 
 def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', CONSUMER_PORT))
+        s.bind(('', CONSUMER_PORT_COMPAT))
         s.listen(5)
         s.settimeout(3)
         while RUNNING:
