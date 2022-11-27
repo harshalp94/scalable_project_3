@@ -8,7 +8,7 @@ from base_utils import *
 RUNNING = True
 VEHICLE_TYPE = "bike"
 # Data size threshold after which we use a direct peer transfer instead of going through the router
-LARGE_DATA_THRESHOLD = 20
+LARGE_DATA_THRESHOLD = 100
 
 
 # Tell router what type of data we are producing, every x seconds
@@ -19,8 +19,9 @@ def advertise(delay):
         # We should also only send data of the same type as this vehicle
         datatypes = DATA_TYPES[index]
         data = f'HOST {get_host(socket)} PORT {PEER_PORT} ACTION {datatypes}'
-        print(f'Advertising producing {datatypes} to {ROUTER_HOST}:{ROUTER_PORT}')
-        send_raw_data(ROUTER_HOST, ROUTER_PORT, data)
+
+
+        send_raw_data(ROUTER_TUPLE, data)
 
         index += 1
         if index >= len(DATA_TYPES):
@@ -28,10 +29,25 @@ def advertise(delay):
         time.sleep(delay)
 
 
-# Send data using tcp sockets
-def send_raw_data(host, port, data):
+def check_connection(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((host, port))
+
+
+# Send data using tcp sockets
+def send_raw_data(ROUTER_TUPLE, data):
+
+    try:
+        router_host, router_port = ROUTER_TUPLE[0]
+        print(f'Advertising producing {data} to {router_host}:{router_port}')
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((router_host, router_port))
+        s.sendall(data.encode())
+    except Exception as exp:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        router_host, router_port = ROUTER_TUPLE[1]
+        print(f'Advertising producing {data} to {router_host}:{router_port}')
+        s.connect((router_host, router_port))
         s.sendall(data.encode())
 
 
@@ -53,7 +69,7 @@ def listen():
                 data = conn.recv(1024)
                 data = decode_msg(data.decode())
                 split_data = data.split()
-                if split_data > 2:
+                if len(split_data) > 2:
                     data, consumer_host, consumer_port = split_data
                 print(f'{data} was requested')
 
@@ -63,7 +79,7 @@ def listen():
 
                 # If data too large send p2p to consumer
                 # We check we were sent IP to be compatible with common protocol
-                if split_data > 2 and len(data) > LARGE_DATA_THRESHOLD:
+                if len(split_data) > 2 and len(data) > LARGE_DATA_THRESHOLD:
                     s.send(b"HTTP/1.1 413 Payload Too Large")
                     # Send large data directly to peer on separate thread
                     threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
