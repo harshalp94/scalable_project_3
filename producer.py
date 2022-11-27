@@ -45,21 +45,9 @@ def send_advertising_data(ROUTER_TUPLE, data):
 
 # Send data using tcp sockets
 def send_raw_data(host, port, data):
-    # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    #     s.settimeout(3)
-    #     s.connect((host, port))
-    #     s.sendall(data.encode())
-    try:
-        router_host, router_port = ROUTER_TUPLE[0]
-        print(f'Advertising producing {data} to {router_host}:{router_port}')
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((router_host, router_port))
-        s.sendall(cipher_suite.encrypt(data.encode()))
-    except Exception as exp:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        router_host, router_port = ROUTER_TUPLE[1]
-        print(f'Advertising producing {data} to {router_host}:{router_port}')
-        s.connect((router_host, router_port))
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(3)
+        s.connect((host, port))
         s.sendall(cipher_suite.encrypt(data.encode()))
 
 
