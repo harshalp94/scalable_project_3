@@ -19,10 +19,9 @@ def base64decode(msg):
     return base64.b64decode(msg.encode("ascii")).decode("ascii")
 
 
-def send(ip, port, msg):
-    peer = (ip, port)
+def send(msg):
     try:
-        router_host, router_port = ROUTER_TUPLE[0]
+        router_host, router_port = INTEREST_ROUTER_TUPLE[0]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((router_host, router_port))
         s.send(str(base64encode(msg)).encode())
@@ -33,7 +32,7 @@ def send(ip, port, msg):
         else:
             return None
     except Exception:
-        router_host, router_port = ROUTER_TUPLE[1]
+        router_host, router_port = INTEREST_ROUTER_TUPLE[1]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((router_host, router_port))
         s.send(str(base64encode(msg)).encode())
@@ -46,7 +45,7 @@ def send(ip, port, msg):
 
 
 def get_data(data_type):
-    result = send(ROUTER_IP, ROUTER_REQUEST_PORT, data_type)
+    result = send(data_type)
     if result:
         return result
     else:

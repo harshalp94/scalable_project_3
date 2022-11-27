@@ -4,9 +4,10 @@ ROUTER_HOST = '10.35.70.30'
 ROUTER_IP_1 = '10.35.70.31'
 
 ROUTER_PORT = 33334
-PEER_PORT = 33301  # Port for listening to other peers
+PEER_PORT = 33310  # Port for listening to other peers
 SENSOR_PORT = 33401  # Port for listening to other sensors
 ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_PORT), (ROUTER_IP_1, ROUTER_PORT)]
+INTEREST_ROUTER_TUPLE = [(ROUTER_HOST, PEER_PORT), (ROUTER_IP_1, PEER_PORT)]
 DATA_TYPES = ["bike/speed", "bike/engine_temp", "bike/battery_temp"]
 
 
