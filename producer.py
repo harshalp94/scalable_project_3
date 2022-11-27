@@ -18,7 +18,7 @@ def advertise(delay):
         # TODO we can send multiple types of data at once
         # We should also only send data of the same type as this vehicle
         datatypes = DATA_TYPES[index]
-        data = f'HOST {get_host(socket)} PORT {PEER_PORT} ACTION {datatypes}'
+        data = f'HOST {get_host(socket)} PORT {PRODUCER_LISTENING_PORT} ACTION {datatypes}'
 
 
         send_raw_data(ROUTER_TUPLE, data)
@@ -59,7 +59,7 @@ def generate_data(datatype):
 # Listen for data requests or incoming data
 def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((get_host(socket), PEER_PORT))
+        s.bind((get_host(socket), PRODUCER_LISTENING_PORT))
         while RUNNING:
             s.listen()
             conn, addr = s.accept()
