@@ -208,10 +208,10 @@ class Peer:
                 ack = cipher_suite.decrypt(ack)
                 print("Acknowledgement received", ack)
                 utf_decode = ack.decode()
-                base64_ack = self.decrypt(utf_decode)
-                print("Base 64 ack", base64_ack)
+                # base64_ack = self.decrypt(ack)
+                print("Base 64 ack", utf_decode)
                 s.close()
-                return base64_ack
+                return utf_decode
             except Exception:
                 print("An exception occured")
                 continue
