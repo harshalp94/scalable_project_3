@@ -37,15 +37,12 @@ class Peer:
     def updatePeerList(self):
         """Update peers list on receipt of their address broadcast."""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        hostname = socket.gethostname()
-        host = socket.gethostbyname(hostname)
-        port = BCAST_PORT
-        s.bind((host, port))
+        s.bind(('', BCAST_PORT))
         s.listen(5)
         while True:
             conn, addr = s.accept()
-            print("BRaddr: ", addr[0])
-            print("BRconnection: ", str(conn))
+            #print("BRaddr: ", addr[0])
+            #print("BRconnection: ", str(conn))
             data = conn.recv(1024)
             # #print("Base 64 decode data updat peer", data)
             # base64_decode_data = self.decode(data)
@@ -71,7 +68,7 @@ class Peer:
 
                 peer = (host, port, action_list)
 
-                if peer != (self.host, self.port, action_list) and peer not in self.peers:
+                if peer not in self.peers:
                     self.peers.add(peer)
                     print('Known vehicles:', self.peers)
                     self.maintain_router()
@@ -121,7 +118,7 @@ class Peer:
     #         conn.close()
     #         time.sleep(1)
 
-    def send_none_to_intereseted_node(self,host,conn):
+    def send_none_to_interested_node(self, host, conn):
         msg = "404 not found"
         encoded_msg = str(self.encrypt(msg)).encode()
         print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
@@ -133,10 +130,7 @@ class Peer:
         """Listen on own port for other peer data."""
         print("listening for interest data")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        hostname = socket.gethostname()
-        host = socket.gethostbyname(hostname)
-        port = INTEREST_PORT
-        s.bind((host, port))
+        s.bind(('', INTEREST_PORT))
         s.listen(5)
         while True:
             conn, addr = s.accept()
@@ -150,26 +144,21 @@ class Peer:
             print("Base 64 decode data", base64_decode)
             # print(utf_data, " to actuate on")
             interest = self.parse_interest(base64_decode.lower())
-            print("Final interset", interest)
+            print("Final interest", interest)
             filtered_ips = self.filter_ips(interest)
             if filtered_ips is None:
-                self.send_none_to_intereseted_node(addr[0], conn)
+                self.send_none_to_interested_node(addr[0], conn)
             else:
                 ack = self.route_to_pi(filtered_ips, interest, addr)
                 self.send_back_to_interested_node(ack, addr[0], conn)
-            # call actuators
-            # sendAck(addr[0], actuationResult)
             conn.close()
             time.sleep(1)
 
     def send_back_to_interested_node(self, message, host, conn):
-
         # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # s.connect((host,INTEREST_PORT))
-        msg = message
-        print("Idhar aaya kya", msg)
-        encoded_msg = str(self.encrypt(msg)).encode()
-        print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
+        encoded_msg = str(self.encrypt(message)).encode()
+        print(f'Sending data to consumer... {encoded_msg}')
         conn.send(encoded_msg)
         return
 
@@ -193,20 +182,20 @@ class Peer:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((peer, PEER_PORT))
                 # Also sending along host and port of consumer, in case of direct connection
-                msg = f'{command} {consumer_address[0]} {consumer_address[1]}'
-                print("Idhar aaya kya", msg)
+                #msg = f'{command} {consumer_address[0]} {consumer_address[1]}'
+                msg = command
+                print(f"Requesting {msg} from {peer}:{PEER_PORT}")
                 s.send(str(self.encrypt(msg)).encode())
-                print("Sent command", msg)
-                sent = True
+                #s.sendmsg(str(self.encrypt(msg)).encode(), )
                 ack = s.recv(1024)
-                print("Acknowledgement received", ack)
+                print("Data received:", ack)
                 utf_decode = ack.decode()
                 base64_ack = self.decrypt(utf_decode)
-                print("Base 64 ack", base64_ack)
+                print("Decoded data:", base64_ack)
                 s.close()
                 return base64_ack
             except Exception:
-                print("An exception occured")
+                print("An exception occurred")
                 continue
                 # self.remove_node(peer,command)
 
@@ -243,7 +232,7 @@ def main():
     t1 = threading.Thread(target=peer.updatePeerList)
     t2 = threading.Thread(target=peer.receiveData)
     t1.start()
-    time.sleep(15)
+    #time.sleep(5)
     t2.start()
 
 

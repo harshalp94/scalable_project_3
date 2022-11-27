@@ -6,7 +6,7 @@ import time
 from base_utils import *
 
 RUNNING = True
-VEHICLE_TYPE = "bike"
+VEHICLE_TYPE = "ebike"
 # Data size threshold after which we use a direct peer transfer instead of going through the router
 LARGE_DATA_THRESHOLD = 20
 
@@ -15,12 +15,15 @@ LARGE_DATA_THRESHOLD = 20
 def advertise(delay):
     index = 0
     while RUNNING:
-        # TODO we can send multiple types of data at once
+        # TODO we can send multiple types of data at once, comma-delimited
         # We should also only send data of the same type as this vehicle
         datatypes = DATA_TYPES[index]
         data = f'HOST {get_host(socket)} PORT {PEER_PORT} ACTION {datatypes}'
         print(f'Advertising producing {datatypes} to {ROUTER_HOST}:{ROUTER_PORT}')
-        send_raw_data(ROUTER_HOST, ROUTER_PORT, data)
+        try:
+            send_raw_data(ROUTER_HOST, ROUTER_PORT, data)
+        except Exception as e:
+            print(f"Failed to advertise {e}")
 
         index += 1
         if index >= len(DATA_TYPES):
@@ -41,7 +44,7 @@ def generate_data(datatype):
     return "VERY GOOD DATA"
 
 
-# Listen for data requests or incoming data
+# Listen for data requests
 def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((get_host(socket), PEER_PORT))
@@ -60,7 +63,7 @@ def listen():
 
                 # Gather the data
                 [vehicle_type, datatype] = data.split('/')
-                data = generate_data(datatype) if VEHICLE_TYPE == vehicle_type else ""
+                data = generate_data(datatype) if VEHICLE_TYPE == vehicle_type else "Wrong vehicle type"
 
                 # If data too large send p2p to consumer
                 # We check we were sent IP to be compatible with common protocol
@@ -70,6 +73,7 @@ def listen():
                     threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
                 else:
                     send_data_back(conn, data)
+                    print("We sent the data back:", data)
 
 
 # Send requested data back to router on same connection
