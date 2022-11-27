@@ -6,6 +6,8 @@ from base_utils import *
 
 RUNNING = True
 
+requested_types = {}
+
 
 def send(msg):
     try:
@@ -36,8 +38,7 @@ def request_data(data_type):
     answer = send(data_type)
     if answer == PAYLOAD_TOO_LARGE_STRING:
         print("Data too large, waiting for direct connection")
-        # TODO we might want to store that we requested this data type in a set, and remove it once received
-        # This way we can re-requested it after x seconds if we haven't gotten it yet
+        requested_types.add(data_type)
     else:
         process_data(answer)
 
@@ -54,6 +55,7 @@ def listen():
                     data = conn.recv(1024)
                     if not data:
                         continue
+                    requested_types.pop()
                     threading.Thread(target=process_data, args=(data,), daemon=True).start()
             except TimeoutError:
                 continue
