@@ -1,21 +1,11 @@
 #!/usr/bin/env python3
 
-import base64
 import socket
-import time
+import threading
 
-ROUTER_IP='127.0.0.1'
-ROUTER_REQUEST_PORT=33310
-CLIENT_IP='127.0.0.1'
-LISTEN_PORT=33302
+from base_utils import *
 
-
-def base64encode(msg):
-    return base64.b64encode(msg.encode("ascii")).decode("ascii")
-
-
-def base64decode(msg):
-    return base64.b64decode(msg.encode("ascii")).decode("ascii")
+RUNNING = True
 
 
 def send(ip, port, msg):
@@ -23,11 +13,11 @@ def send(ip, port, msg):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect(peer)
-        s.send(str(base64encode(msg)).encode())
+        s.send(str(encode_msg(msg)).encode())
         answer = s.recv(1024)
         s.close()
         if answer:
-            return base64decode(answer.decode('utf-8'))
+            return decode_msg(answer.decode('utf-8'))
         else:
             return None
     except Exception as e:
@@ -35,32 +25,52 @@ def send(ip, port, msg):
 
 
 def get_data(data_type):
-    result = send(ROUTER_IP, ROUTER_REQUEST_PORT, data_type)
-    if result:
-        return result
+    answer = send(ROUTER_HOST, ROUTER_INTEREST_PORT, data_type)
+    if answer == PAYLOAD_TOO_LARGE_STRING:
+        print("Data too large, waiting for direct connection")
+        # TODO we might want to store that we requested this data type in a set, and remove it once received
+        # This way we can re-requested it after x seconds if we haven't gotten it yet
     else:
-        return listen()
+        process_data(answer)
 
 
 def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((CLIENT_IP, LISTEN_PORT))
-        while True:
-            s.listen()
-            conn, addr = s.accept()
-            with conn:
-                while True:
+        s.bind(('', CONSUMER_PORT))
+        s.listen(5)
+        s.settimeout(3)
+        while RUNNING:
+            try:
+                conn, addr = s.accept()
+                with conn:
                     data = conn.recv(1024)
                     if not data:
-                        break
-                    return data
+                        continue
+                    threading.Thread(target=process_data, args=(data,), daemon=True).start()
+            except TimeoutError:
+                continue
+
+
+def process_data(data):
+    print(f'Received data {data}')
 
 
 def main():
-    while True:
-        data_type = input("Enter data to fetch:")
-        print(data_type + ": " + get_data(data_type))
-        time.sleep(5)
+    listen_thread = threading.Thread(target=listen)
+    listen_thread.start()
+
+    global RUNNING
+    while RUNNING:
+        try:
+            data_type = input("Enter data to fetch: ")
+            get_data(data_type)
+        except KeyboardInterrupt:
+            RUNNING = False
+
+    print("Shutting down, please wait 3 seconds...")
+
+    # Make sure we release socket binds properly
+    listen_thread.join()
 
 
 if __name__ == '__main__':

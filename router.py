@@ -1,14 +1,11 @@
 import socket
 import threading
 import time
-import base64
 
-PEER_PORT = 33301  # Port for listening to other peers
-BCAST_PORT = 33334  # Port for broadcasting own address
-INTEREST_PORT = 33310
+from base_utils import *
 
+RUNNING = True
 map_dict = {}
-
 
 def tabular_display(temp_dict):
     print("{:<25} | {:<15}".format('ACTION', 'IP_ADDR'))
@@ -22,57 +19,48 @@ class Peer:
         self.port = port
         self.peers = set()
 
-    def encrypt(self, toEncode):
-        ascii_encoded = toEncode.encode("ascii")
-        base64_bytes = base64.b64encode(ascii_encoded)
-        base64_string = base64_bytes.decode("ascii")
-        return base64_string
-
-    def decrypt(self, toDecode):
-        base64_bytes = toDecode.encode("ascii")
-        sample_string_bytes = base64.b64decode(base64_bytes)
-        sample_string = sample_string_bytes.decode("ascii")
-        return sample_string
-
     def updatePeerList(self):
         """Update peers list on receipt of their address broadcast."""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('', BCAST_PORT))
+        s.bind(('', ROUTER_PORT))
+        s.settimeout(3)
         s.listen(5)
-        while True:
-            conn, addr = s.accept()
-            #print("BRaddr: ", addr[0])
-            #print("BRconnection: ", str(conn))
-            data = conn.recv(1024)
-            # #print("Base 64 decode data updat peer", data)
-            # base64_decode_data = self.decode(data)
-            # print("Base 64 decode data updat peer", base64_decode_data)
-            # utf_data = base64_decode_data.decode(data)
-            # print("utd 8 decode data updat peer", utf_data)
-            # print(data, " Peer List data")
-            # #data, _ = s.recvfrom(1024)
-            data = data.decode()
-            # print("received message:", data)
-            dataMessage = data.split(' ')
-            action_list = self.split_using_act(data.split('ACTION '))
-            command = dataMessage[0]
-            if command == 'HOST':
-                host = dataMessage[1]
-                port = int(dataMessage[3])
-                if len(dataMessage) > 5:
-                    action = dataMessage[5]
-                else:
-                    action = ''
-                # host = dataMessage[1]
-                # port = int(dataMessage[3])
+        while RUNNING:
+            try:
+                conn, addr = s.accept()
+                #print("BRaddr: ", addr[0])
+                #print("BRconnection: ", str(conn))
+                data = conn.recv(1024)
+                # #print("Base 64 decode data updat peer", data)
+                # base64_decode_data = self.decode(data)
+                # print("Base 64 decode data updat peer", base64_decode_data)
+                # utf_data = base64_decode_data.decode(data)
+                # print("utd 8 decode data updat peer", utf_data)
+                # print(data, " Peer List data")
+                # #data, _ = s.recvfrom(1024)
+                data = data.decode()
+                # print("received message:", data)
+                dataMessage = data.split(' ')
+                action_list = self.split_using_act(data.split('ACTION '))
+                command = dataMessage[0]
+                if command == 'HOST':
+                    host = dataMessage[1]
+                    port = int(dataMessage[3])
+                    if len(dataMessage) > 5:
+                        action = dataMessage[5]
+                    else:
+                        action = ''
+                    # host = dataMessage[1]
+                    # port = int(dataMessage[3])
 
-                peer = (host, port, action_list)
+                    peer = (host, port, action_list)
 
-                if peer not in self.peers:
-                    self.peers.add(peer)
-                    print('Known vehicles:', self.peers)
-                    self.maintain_router()
-            time.sleep(2)
+                    if peer not in self.peers:
+                        self.peers.add(peer)
+                        print('Known vehicles:', self.peers)
+                        self.maintain_router()
+            except TimeoutError:
+                continue
 
     def parse_interest(self, interest):
         return interest
@@ -120,7 +108,7 @@ class Peer:
 
     def send_none_to_interested_node(self, host, conn):
         msg = "404 not found"
-        encoded_msg = str(self.encrypt(msg)).encode()
+        encoded_msg = str(encode_msg(msg)).encode()
         print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
         conn.send(encoded_msg)
         return
@@ -130,34 +118,37 @@ class Peer:
         """Listen on own port for other peer data."""
         print("listening for interest data")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('', INTEREST_PORT))
+        s.bind(('', ROUTER_INTEREST_PORT))
+        s.settimeout(3)
         s.listen(5)
-        while True:
-            conn, addr = s.accept()
-            print("addr: ", addr[0])
-            print("connection: ", str(conn))
-            data = conn.recv(1024)
-            print("Received data", data)
-            utf_data = data.decode()
-            print("Decoded data", utf_data)
-            base64_decode = self.decrypt(utf_data)
-            print("Base 64 decode data", base64_decode)
-            # print(utf_data, " to actuate on")
-            interest = self.parse_interest(base64_decode.lower())
-            print("Final interest", interest)
-            filtered_ips = self.filter_ips(interest)
-            if filtered_ips is None:
-                self.send_none_to_interested_node(addr[0], conn)
-            else:
-                ack = self.route_to_pi(filtered_ips, interest, addr)
-                self.send_back_to_interested_node(ack, addr[0], conn)
-            conn.close()
-            time.sleep(1)
+        while RUNNING:
+            try:
+                conn, addr = s.accept()
+                print("addr: ", addr[0])
+                print("connection: ", str(conn))
+                data = conn.recv(1024)
+                print("Received data", data)
+                utf_data = data.decode()
+                print("Decoded data", utf_data)
+                base64_decode = decode_msg(utf_data)
+                print("Base 64 decode data", base64_decode)
+                # print(utf_data, " to actuate on")
+                interest = self.parse_interest(base64_decode.lower())
+                print("Final interest", interest)
+                filtered_ips = self.filter_ips(interest)
+                if filtered_ips is None:
+                    self.send_none_to_interested_node(addr[0], conn)
+                else:
+                    received_data = self.route_to_pi(filtered_ips, interest, addr)
+                    self.send_back_to_interested_node(received_data, addr[0], conn)
+                conn.close()
+            except TimeoutError:
+                continue
 
     def send_back_to_interested_node(self, message, host, conn):
         # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # s.connect((host,INTEREST_PORT))
-        encoded_msg = str(self.encrypt(message)).encode()
+        encoded_msg = str(encode_msg(message)).encode()
         print(f'Sending data to consumer... {encoded_msg}')
         conn.send(encoded_msg)
         return
@@ -173,29 +164,24 @@ class Peer:
 
     def route_to_pi(self, peer_list, command, consumer_address):
         """Send sensor data to all peers."""
-        sent = False
-        # if command == 'ALERT':
         print("What is peer list and command :{} {}".format(peer_list, command))
         for peer in peer_list:
-            print("What is peer inside peerlist", peer)
+            print(f"Data requested by {consumer_address}")
+            print(f"Requesting {command} from {peer}:{PRODUCER_PORT}")
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((peer, PEER_PORT))
-                # Also sending along host and port of consumer, in case of direct connection
-                #msg = f'{command} {consumer_address[0]} {consumer_address[1]}'
-                msg = command
-                print(f"Requesting {msg} from {peer}:{PEER_PORT}")
-                s.send(str(self.encrypt(msg)).encode())
-                #s.sendmsg(str(self.encrypt(msg)).encode(), )
-                ack = s.recv(1024)
-                print("Data received:", ack)
-                utf_decode = ack.decode()
-                base64_ack = self.decrypt(utf_decode)
-                print("Decoded data:", base64_ack)
+                s.connect((peer, PRODUCER_PORT))
+                encoded_message = str(encode_msg(command)).encode()
+                s.send(encoded_message)
+                received_data = s.recv(1024)
+                print("Data received:", received_data)
+                utf_decode = received_data.decode()
+                decoded_data = decode_msg(utf_decode)
+                print("Decoded data:", decoded_data)
                 s.close()
-                return base64_ack
-            except Exception:
-                print("An exception occurred")
+                return decoded_data
+            except Exception as e:
+                print("An exception occurred requesting data", e)
                 continue
                 # self.remove_node(peer,command)
 
@@ -227,13 +213,30 @@ class Peer:
 def main():
     hostname = socket.gethostname()
     host = socket.gethostbyname(hostname)
-    peer = Peer(host, PEER_PORT)
+    peer = Peer(host, PRODUCER_PORT)
 
-    t1 = threading.Thread(target=peer.updatePeerList)
-    t2 = threading.Thread(target=peer.receiveData)
-    t1.start()
-    #time.sleep(5)
-    t2.start()
+    threads = [
+        threading.Thread(target=peer.updatePeerList),
+        threading.Thread(target=peer.receiveData)
+               ]
+
+    for thread in threads:
+        thread.start()
+
+    # Run until user input
+    try:
+        input('Enter quit or press Ctrl-C to stop program\n')
+    except KeyboardInterrupt:
+        pass
+
+    print("Shutting down, please wait 3 seconds...")
+
+    # Make sure we release socket binds properly
+    global RUNNING
+    RUNNING = False
+    # Wait for threads to quit
+    for thread in threads:
+        thread.join()
 
 
 if __name__ == '__main__':
