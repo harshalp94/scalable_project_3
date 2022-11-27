@@ -5,7 +5,7 @@ import socket
 import time
 
 ROUTER_IP='127.0.0.1'
-ROUTER_REQUEST_PORT=33301
+ROUTER_REQUEST_PORT=33310
 CLIENT_IP='127.0.0.1'
 LISTEN_PORT=33302
 
@@ -58,8 +58,10 @@ def listen():
 
 def main():
     while True:
-        data_type = input("Enter data to fetch:")
-        print(data_type + ": " + get_data(data_type))
+        vehicle = input("Enter vehicle to gather data about:")
+        data_type = input("Enter data to gather:")
+        data_name = vehicle + data_type
+        print(data_name + ": " + get_data(data_name))
         time.sleep(5)
 
 
