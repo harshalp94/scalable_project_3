@@ -5,10 +5,9 @@ import base64
 from cryptography.fernet import Fernet
 from base_utils import *
 
-PEER_PORT = 33301  # Port for listening to other peers
-BCAST_PORT = 33334  # Port for broadcasting own address
-INTEREST_PORT = 33310
+from base_utils import *
 
+RUNNING = True
 map_dict = {}
 
 cipher_suite = Fernet(ENCRYPTION_KEY)
@@ -25,61 +24,49 @@ class Peer:
         self.port = port
         self.peers = set()
 
-    def encrypt(self, toEncode):
-        ascii_encoded = toEncode.encode("ascii")
-        base64_bytes = base64.b64encode(ascii_encoded)
-        base64_string = base64_bytes.decode("ascii")
-        return base64_string
-
-    def decrypt(self, toDecode):
-        base64_bytes = toDecode.encode("ascii")
-        sample_string_bytes = base64.b64decode(base64_bytes)
-        sample_string = sample_string_bytes.decode("ascii")
-        return sample_string
-
     def updatePeerList(self):
         """Update peers list on receipt of their address broadcast."""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        hostname = socket.gethostname()
-        host = socket.gethostbyname(hostname)
-        port = BCAST_PORT
-        s.bind((host, port))
+        s.bind(('', ROUTER_ADVERTISING_PORT_COMPAT))
+        s.settimeout(3)
         s.listen(5)
-        while True:
-            conn, addr = s.accept()
-            print("BRaddr: ", addr[0])
-            print("BRconnection: ", str(conn))
-            data = conn.recv(1024)
-            data = cipher_suite.decrypt(data)
-            # #print("Base 64 decode data updat peer", data)
-            # base64_decode_data = self.decode(data)
-            # print("Base 64 decode data updat peer", base64_decode_data)
-            # utf_data = base64_decode_data.decode(data)
-            # print("utd 8 decode data updat peer", utf_data)
-            # print(data, " Peer List data")
-            # #data, _ = s.recvfrom(1024)
-            data = data.decode()
-            # print("received message:", data)
-            dataMessage = data.split(' ')
-            action_list = self.split_using_act(data.split('ACTION '))
-            command = dataMessage[0]
-            if command == 'HOST':
-                host = dataMessage[1]
-                port = int(dataMessage[3])
-                if len(dataMessage) > 5:
-                    action = dataMessage[5]
-                else:
-                    action = ''
-                # host = dataMessage[1]
-                # port = int(dataMessage[3])
+        while RUNNING:
+            try:
+                conn, addr = s.accept()
+                # print("BRaddr: ", addr[0])
+                # print("BRconnection: ", str(conn))
+                data = conn.recv(1024)
+                data = cipher_suite.decrypt(data)
+                # #print("Base 64 decode data updat peer", data)
+                # base64_decode_data = self.decode(data)
+                # print("Base 64 decode data updat peer", base64_decode_data)
+                # utf_data = base64_decode_data.decode(data)
+                # print("utd 8 decode data updat peer", utf_data)
+                # print(data, " Peer List data")
+                # #data, _ = s.recvfrom(1024)
+                data = data.decode()
+                # print("received message:", data)
+                dataMessage = data.split(' ')
+                action_list = self.split_using_act(data.split('ACTION '))
+                command = dataMessage[0]
+                if command == 'HOST':
+                    host = dataMessage[1]
+                    port = int(dataMessage[3])
+                    if len(dataMessage) > 5:
+                        action = dataMessage[5]
+                    else:
+                        action = ''
+                    # host = dataMessage[1]
+                    # port = int(dataMessage[3])
 
-                peer = (host, port, action_list)
+                    peer = (host, port, action_list)
 
-                if peer != (self.host, self.port, action_list) and peer not in self.peers:
-                    self.peers.add(peer)
-                    print('Known vehicles:', self.peers)
-                    self.maintain_router()
-            time.sleep(2)
+                    if peer not in self.peers:
+                        self.peers.add(peer)
+                        print('Known vehicles:', self.peers)
+                        self.maintain_router()
+            except TimeoutError:
+                continue
 
     def parse_interest(self, interest):
         return interest
@@ -98,84 +85,51 @@ class Peer:
         # new_ls = temp_str.split(',')
         return str(temp_str)
 
-    # def receiveData(self):
-    #     """Listen on own port for other peer data."""
-    #     print("listening for interest data")
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     hostname = socket.gethostname()
-    #     host = socket.gethostbyname(hostname)
-    #     port = INTEREST_PORT
-    #     s.bind((host, port))
-    #     s.listen(5)
-    #     while True:
-    #         conn, addr = s.accept()
-    #         print("addr: ", addr[0])
-    #         print("connection: ", str(conn))
-    #         data = conn.recv(1024)
-    #         base64_decode = self.decrypt(data)
-    #         utf_data = base64_decode.decode('utf-8')
-    #         print(utf_data, " to actuate on")
-    #         interset = self.parse_interest(utf_data.lower())
-    #         print("Final interset", interset)
-    #         filtered_ips = self.filter_ips(interset)
-    #         ack = self.route_to_pi(filtered_ips, interset)
-    #         self.send_back_to_interested_node(ack, addr[0], conn)
-    #         # call actuators
-    #         # sendAck(addr[0], actuationResult)
-    #         conn.close()
-    #         time.sleep(1)
-
-    def send_none_to_intereseted_node(self,host,conn):
+    def send_none_to_interested_node(self, host, conn):
         msg = "404 not found"
-        encoded_msg = cipher_suite.encrypt(str(self.encrypt(msg)).encode())
-        print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
+        encoded_msg = cipher_suite.encrypt(str(encode_msg(msg)).encode())
         conn.send(encoded_msg)
         return
-        
 
     def receiveData(self):
         """Listen on own port for other peer data."""
-        print("listening for interest data")
+        print("Listening for data requests...")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        hostname = socket.gethostname()
-        host = socket.gethostbyname(hostname)
-        port = INTEREST_PORT
-        s.bind((host, port))
+        s.bind(('', ROUTER_REQUEST_PORT_COMPAT))
+        s.settimeout(3)
         s.listen(5)
-        while True:
-            conn, addr = s.accept()
-            print("addr: ", addr[0])
-            print("connection: ", str(conn))
-            data = conn.recv(1024)
-            print("Received data", data)
-            data = cipher_suite.decrypt(data)
-            print("Data After Decryption", data)
-            utf_data = data.decode()
-            print("Decoded data", utf_data)
-            base64_decode = self.decrypt(utf_data)
-            print("Base 64 decode data", base64_decode)
-            # print(utf_data, " to actuate on")
-            interest = self.parse_interest(base64_decode.lower())
-            print("Final interset", interest)
-            filtered_ips = self.filter_ips(interest)
-            if filtered_ips is None:
-                self.send_none_to_intereseted_node(addr[0], conn)
-            else:
-                ack = self.route_to_pi(filtered_ips, interest, addr)
-                self.send_back_to_interested_node(ack, addr[0], conn)
-            # call actuators
-            # sendAck(addr[0], actuationResult)
-            conn.close()
-            time.sleep(1)
+        while RUNNING:
+            try:
+                conn, addr = s.accept()
+                print("addr: ", addr[0])
+                print("connection: ", str(conn))
+                data = conn.recv(1024)
+                print("Received data", data)
+                data = cipher_suite.decrypt(data)
+                print("Data After Decryption", data)
+                utf_data = data.decode()
+                print("Decoded data", utf_data)
+                base64_decode = decode_msg(utf_data)
+                print("Base 64 decode data", base64_decode)
+                # print(utf_data, " to actuate on")
+                interest = self.parse_interest(base64_decode.lower())
+                print("Final interest", interest)
+                filtered_ips = self.filter_ips(interest)
+                if filtered_ips is None:
+                    print("Data not found!")
+                    self.send_none_to_interested_node(addr[0], conn)
+                else:
+                    received_data = self.route_to_pi(filtered_ips, interest, addr)
+                    self.send_back_to_interested_node(received_data, addr[0], conn)
+                conn.close()
+            except TimeoutError:
+                continue
 
     def send_back_to_interested_node(self, message, host, conn):
-
         # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # s.connect((host,INTEREST_PORT))
-        msg = message
-        print("Idhar aaya kya", msg)
-        encoded_msg = cipher_suite.encrypt(str(self.encrypt(msg)).encode())
-        print("WHAT IS ENCODED BACK TO SENDEr", encoded_msg)
+        encoded_msg = cipher_suite.encrypt(str(encode_msg(message)).encode())
+        print(f'Sending data to consumer... {encoded_msg}')
         conn.send(encoded_msg)
         return
 
@@ -190,30 +144,25 @@ class Peer:
 
     def route_to_pi(self, peer_list, command, consumer_address):
         """Send sensor data to all peers."""
-        sent = False
-        # if command == 'ALERT':
         print("What is peer list and command :{} {}".format(peer_list, command))
         for peer in peer_list:
-            print("What is peer inside peerlist", peer)
+            print(f"Data requested by {consumer_address}")
+            print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((peer, PEER_PORT))
-                # Also sending along host and port of consumer, in case of direct connection
-                msg = f'{command} {consumer_address[0]} {consumer_address[1]}'
-                print("Idhar aaya kya", msg)
-                s.send(cipher_suite.encrypt(str(self.encrypt(msg)).encode()))
-                print("Sent command", msg)
-                sent = True
-                ack = s.recv(1024)
-                ack = cipher_suite.decrypt(ack)
-                print("Acknowledgement received", ack)
-                utf_decode = ack.decode()
-                # base64_ack = self.decrypt(ack)
-                print("Base 64 ack", utf_decode)
+                s.connect((peer, PRODUCER_PORT_COMPAT))
+                encoded_message = cipher_suite.encrypt(str(encode_msg(command)).encode())
+                s.send(encoded_message)
+                received_data = s.recv(1024)
+                received_data = cipher_suite.decrypt(received_data)
+                print("Data received:", received_data)
+                utf_decode = received_data.decode()
+                decoded_data = decode_msg(utf_decode)
+                print("Decoded data:", decoded_data)
                 s.close()
-                return utf_decode
-            except Exception:
-                print("An exception occured")
+                return decoded_data
+            except Exception as e:
+                print("An exception occurred requesting data", e)
                 continue
                 # self.remove_node(peer,command)
 
@@ -233,8 +182,6 @@ class Peer:
                     temp_set = map_dict[action]
                     temp_set.add(host)
                     map_dict[action] = temp_set
-
-
                 else:
                     empty_set.add(host)
                     map_dict[action] = empty_set
@@ -245,13 +192,32 @@ class Peer:
 def main():
     hostname = socket.gethostname()
     host = socket.gethostbyname(hostname)
-    peer = Peer(host, PEER_PORT)
+    peer = Peer(host, PRODUCER_PORT_COMPAT)
 
-    t1 = threading.Thread(target=peer.updatePeerList)
-    t2 = threading.Thread(target=peer.receiveData)
-    t1.start()
-    time.sleep(15)
-    t2.start()
+    threads = [
+        threading.Thread(target=peer.updatePeerList),
+        threading.Thread(target=peer.receiveData)
+    ]
+
+    for thread in threads:
+        thread.start()
+
+    # Run until user input
+    global RUNNING
+    try:
+        while RUNNING:
+            pass
+        #input('Enter quit or press Ctrl-C to stop program\n')
+    except KeyboardInterrupt:
+        pass
+
+    print("Shutting down, please wait 3 seconds...")
+
+    # Make sure we release socket binds properly
+    RUNNING = False
+    # Wait for threads to quit
+    for thread in threads:
+        thread.join()
 
 
 if __name__ == '__main__':

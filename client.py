@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 
-import base64
 import socket
-import time
+import threading
 from base_utils import *
 from cryptography.fernet import Fernet
 
-ROUTER_IP='127.0.0.1'
-ROUTER_REQUEST_PORT=33310
-CLIENT_IP='127.0.0.1'
-LISTEN_PORT=33302
+RUNNING = True
 
 cipher_suite = Fernet(ENCRYPTION_KEY)
 
@@ -20,87 +16,94 @@ def base64encode(msg):
 def base64decode(msg):
     return base64.b64decode(msg.encode("ascii")).decode("ascii")
 
+requested_types = {}
+
 
 def send(msg):
     try:
         router_host, router_port = INTEREST_ROUTER_TUPLE[0]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((router_host, router_port))
-        s.send(cipher_suite.encrypt(str(base64encode(msg)).encode()))
+        s.send(cipher_suite.encrypt(str(encode_msg(msg)).encode()))
         answer = s.recv(1024)
         answer = cipher_suite.decrypt(answer)
         s.close()
         if answer:
-            return base64decode(answer.decode('utf-8'))
+            return decode_msg(answer.decode('utf-8'))
         else:
             return None
     except Exception:
         router_host, router_port = INTEREST_ROUTER_TUPLE[1]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((router_host, router_port))
-        s.send(cipher_suite.encrypt(str(base64encode(msg)).encode()))
+        s.send(cipher_suite.encrypt(str(encode_msg(msg)).encode()))
         answer = s.recv(1024)
         answer = cipher_suite.decrypt(answer)
         s.close()
         if answer:
-            return base64decode(answer.decode('utf-8'))
+            return decode_msg(answer.decode('utf-8'))
         else:
             return None
 
 
-def get_data(data_type):
-    result = send(data_type)
-    if result:
-        return result
+def request_data(data_type):
+    answer = send(data_type)
+    if answer == PAYLOAD_TOO_LARGE_STRING:
+        print("Data too large, waiting for direct connection")
+        requested_types.add(data_type)
     else:
-        return listen()
+        process_data(answer)
 
 
 def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((CLIENT_IP, LISTEN_PORT))
-        while True:
-            s.listen()
-            conn, addr = s.accept()
-            with conn:
-                while True:
+        s.bind(('', CONSUMER_PORT_COMPAT))
+        s.listen(5)
+        s.settimeout(3)
+        while RUNNING:
+            try:
+                conn, addr = s.accept()
+                with conn:
                     data = conn.recv(1024)
                     if not data:
-                        break
-                    return data
+                        continue
+                    requested_types.pop()
+                    threading.Thread(target=process_data, args=(data,), daemon=True).start()
+            except TimeoutError:
+                continue
+
+
+# TODO this is where we would do something fancy with the received data
+def process_data(data):
+    print(f'Received data {data}')
 
 
 def main():
-    while True:
-        vehicle = input("Enter vehicle to gather data about (help for possible types):")
-        vehicles = ['bus', 'train', 'tram', 'metro', 'taxi']
-        while vehicle not in vehicles:
-            print("Possible vehicles: " + ', '.join(str(e) for e in vehicles))
-            vehicle = input("Enter vehicle to gather data about (help for possible types):")
-        data_type = input("Enter data to gather (help for possible types):")
-        match vehicle:
-            case 'bus':
-                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
-                              'ambient_temperature', 'fuel_sensor']
-            case 'tram':
-                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
-                              'ambient_temperature', 'track_temperature']
-            case 'taxi':
-                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
-                              'ambient_temperature', 'fuel_sensor']
-            case 'train':
-                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
-                              'ambient_temperature', 'fuel_sensor', 'locomotive', 'track_temperature']
-            case 'metro':
-                data_types = ['position', 'passengers', 'waiting', 'maintain', 'in_service', 'destination',
-                              'ambient_temperature', 'locomotive', 'track_temperature']
-        while data_type not in data_types:
-            print("Possible data types: " + ', '.join(str(e) for e in data_types))
-            data_type = input("Enter data type (help for possible types):")
+    listen_thread = threading.Thread(target=listen)
+    listen_thread.start()
 
-        data_name = vehicle + data_type
-        print(data_name + ": " + get_data(data_name))
-        time.sleep(5)
+    global RUNNING
+    while RUNNING:
+        try:
+            vehicle = input("Enter vehicle to gather data about (help for possible types): ")
+            while vehicle not in VEHICLES:
+                print("Possible vehicles: " + ', '.join(str(e) for e in VEHICLES))
+                vehicle = input("Enter vehicle to gather data about (help for possible types):")
+            data_type = input("Enter data to gather (help for possible types): ")
+            vehicle_data_types = DATA_TYPES[vehicle]
+            while data_type not in vehicle_data_types:
+                print("Possible data types: " + ', '.join(str(e) for e in vehicle_data_types))
+                data_type = input("Enter data type (help for possible types): ")
+
+            data_name = f'{vehicle}/{data_type}'
+            request_data(data_name)
+        except KeyboardInterrupt:
+            RUNNING = False
+
+    print("Shutting down, please wait 3 seconds...")
+
+    # Make sure we release socket binds properly
+    listen_thread.join()
 
 
 if __name__ == '__main__':
