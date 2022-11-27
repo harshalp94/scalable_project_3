@@ -50,6 +50,7 @@ class Peer:
             print("BRaddr: ", addr[0])
             print("BRconnection: ", str(conn))
             data = conn.recv(1024)
+            data = cipher_suite.decrypt(data)
             # #print("Base 64 decode data updat peer", data)
             # base64_decode_data = self.decode(data)
             # print("Base 64 decode data updat peer", base64_decode_data)
