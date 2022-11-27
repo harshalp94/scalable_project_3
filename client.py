@@ -9,12 +9,6 @@ RUNNING = True
 
 cipher_suite = Fernet(ENCRYPTION_KEY)
 
-def base64encode(msg):
-    return base64.b64encode(msg.encode("ascii")).decode("ascii")
-
-
-def base64decode(msg):
-    return base64.b64decode(msg.encode("ascii")).decode("ascii")
 
 requested_types = {}
 
