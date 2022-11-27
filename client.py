@@ -3,6 +3,7 @@
 import base64
 import socket
 import time
+from base_utils import *
 
 ROUTER_IP='127.0.0.1'
 ROUTER_REQUEST_PORT=33301
@@ -21,8 +22,9 @@ def base64decode(msg):
 def send(ip, port, msg):
     peer = (ip, port)
     try:
+        router_host, router_port = ROUTER_TUPLE[0]
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(peer)
+        s.connect((router_host, router_port))
         s.send(str(base64encode(msg)).encode())
         answer = s.recv(1024)
         s.close()
@@ -31,7 +33,16 @@ def send(ip, port, msg):
         else:
             return None
     except Exception:
-        print("Exception")
+        router_host, router_port = ROUTER_TUPLE[1]
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((router_host, router_port))
+        s.send(str(base64encode(msg)).encode())
+        answer = s.recv(1024)
+        s.close()
+        if answer:
+            return base64decode(answer.decode('utf-8'))
+        else:
+            return None
 
 
 def get_data(data_type):
