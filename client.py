@@ -51,26 +51,18 @@ def process_data(data):
     if data is None or data.startswith('404 not found'):
         print("No data!")
     elif data == PAYLOAD_TOO_LARGE_STRING or data == MULTIPLE_CHOICES_STRING:
-        print(data)  # TODO might want to just ignore
+        pass  # Cause we need to wait for a direct transfer
     else:
         print(data)
-        # [datatype, datavalue] = data.split(' ')
-        # [vehicle, vehicle_property] = datatype.split(',')
-        # if vehicle_property == "fuel_sensor" and int(datavalue.split('%')[0]) < 10:
-        #    print(f'Less than 10% of fuel left for vehicle {vehicle}.')
-        # if vehicle_property == "maintain" and datavalue == 'True':
-        #    print(f'Vehicle {vehicle} needs maintenance.')
-        # if vehicle_property == "track_temperature" and int(datavalue) > 50:
-        #    print(f'Track temperature for train {vehicle} is too high.')
-    [datatype, datavalue] = data.split(' ')
-    [vehicle, vehicle_property] = datatype.split('/')
+        [datatype, datavalue] = data.split(' ')
+        [vehicle, vehicle_property] = datatype.split('/')
 
-    if vehicle_property == "fuel_sensor" and int((datavalue.replace('%', ''))) < 10:
-        print(f'Less than 10% of fuel left for vehicle {vehicle}.')
-    if vehicle_property == "maintain" and datavalue == 'True':
-        print(f'Vehicle {vehicle} needs maintenance.')
-    if vehicle_property == "track_temperature" and int(datavalue) > 50:
-        print(f'Track temperature for train {vehicle} is too high.')
+        if vehicle_property == "fuel_sensor" and int((datavalue.replace('%', ''))) < 10:
+            print(f'Less than 10% of fuel left for vehicle {vehicle}.')
+        if vehicle_property == "maintain" and datavalue == 'True':
+            print(f'Vehicle {vehicle} needs maintenance.')
+        if vehicle_property == "track_temperature" and int(datavalue) > 50:
+            print(f'Track temperature for train {vehicle} is too high.')
 
 
 def main():
