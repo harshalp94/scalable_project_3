@@ -1,5 +1,6 @@
 import socket
 import threading
+import re
 from base_utils import *
 
 RUNNING = True
@@ -11,17 +12,60 @@ def split_str(act_string):
     return str(temp_str)
 
 
+# Takes e.g. bus1/position or bus*/position or bus2/* or bus*/*, returns dictionary of interest,host
+def find_producers_with_requested_data(interest):
+    return_dict = dict()
+
+    [vehicle_string, datatype] = interest.split('/')
+    vehicle_num = re.findall(r'\d+|\*', vehicle_string)[0]
+    vehicle_type = vehicle_string.replace(vehicle_num, '')
+
+    if '*' not in interest:
+        if interest in map_dict:
+            return_dict[interest] = map_dict[interest]
+    else:
+        for k, v in map_dict.items():
+            if (vehicle_num == '*' or k.startswith(vehicle_type)) and (datatype == '*' or k.endswith(datatype)):
+                return_dict[k] = v
+
+    return return_dict
+
+
+def request_data_from_producer(peer, command, consumer_host, direct_transfer=False):
+    """Send sensor data to all peers."""
+    print("What is peer and command :{} {}".format(peer, command))
+    print(f"Data requested by {consumer_host}")
+    print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
+    try:
+        # Request data from producer
+        msg = f'{command} {consumer_host} {direct_transfer}'
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((peer, PRODUCER_PORT_COMPAT))
+        encrypted_message = encrypt_msg(msg)
+        s.send(encrypted_message)
+        received_data = s.recv(1024)
+
+        print("Data received:", received_data)
+        decoded_data = decrypt_msg(received_data)
+        print("Decoded data:", decoded_data)
+        s.close()
+        return decoded_data
+    except Exception as e:
+        print("An exception occurred requesting data", e)
+        # self.remove_node(peer,command)
+
+
 class Peer:
     def __init__(self, host, port):
         self.host = host
         self.port = port
         self.peers = set()
 
-    def gen_adv_peer_list(self):
+    def advertising_listener(self):
         """Update peers list on receipt of their address broadcast."""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('', ROUTER_ADVERTISING_PORT_COMPAT))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(('', ROUTER_ADVERTISING_PORT_COMPAT))
         s.listen(5)
         while RUNNING:
             conn, addr = s.accept()
@@ -37,16 +81,14 @@ class Peer:
                 self.peers.add(peer)
                 print('Known Public transport Vehicles:', self.peers)
                 self.add_adv_peer()
-            else:
-                print(f'Peer {host} already known')
 
-    def get_data(self):
-        """Listen on own port for other peer data."""
+    def data_requests_listener(self):
+        """Listen on own port for a data request"""
         print("Listening for data requests...")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('', ROUTER_REQUEST_PORT_COMPAT))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.listen(5)
+        s.bind(('', ROUTER_REQUEST_PORT_COMPAT))
+        s.listen(10)
         while RUNNING:
             conn, addr = s.accept()
             print("addr: ", addr[0])
@@ -58,37 +100,23 @@ class Peer:
             # print(utf_data, " to actuate on")
             interest = decrypted.lower()
             print("Final interest", interest)
-            # filtered_ips = map_dict[interest]
-            if interest not in map_dict:
+
+            # Key dictionary of interest,host
+            found_producers: dict = find_producers_with_requested_data(interest)
+
+            if len(found_producers) <= 0:
                 print("Data not found!")
                 send_err_ack(conn)
-            else:
-                received_data = self.request_data_from_producer(map_dict[interest], interest, addr[0])
+            elif len(found_producers) <= 1:
+                received_data = request_data_from_producer(found_producers.popitem()[1], interest, addr[0])
                 send_data_to_cons(received_data, conn)
+            else:
+                # Multiple data requests, send via direct transfer
+                send_data_to_cons(MULTIPLE_CHOICES_STRING, conn)
+                for specific_interest, producer in found_producers.items():
+                    request_data_from_producer(producer, specific_interest, addr[0], True)
+
             conn.close()
-
-    def request_data_from_producer(self, peer, command, consumer_host):
-        """Send sensor data to all peers."""
-        print("What is peer and command :{} {}".format(peer, command))
-        print(f"Data requested by {consumer_host}")
-        print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
-        try:
-            # Request data from producer
-            msg = f'{command} {consumer_host}'
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((peer, PRODUCER_PORT_COMPAT))
-            encrypted_message = encrypt_msg(msg)
-            s.send(encrypted_message)
-            received_data = s.recv(1024)
-
-            print("Data received:", received_data)
-            decoded_data = decrypt_msg(received_data)
-            print("Decoded data:", decoded_data)
-            s.close()
-            return decoded_data
-        except Exception as e:
-            print("An exception occurred requesting data", e)
-            # self.remove_node(peer,command)
 
     def add_adv_peer(self):
         for peer in self.peers:
@@ -118,8 +146,8 @@ def main():
     peer = Peer(host, PRODUCER_PORT_COMPAT)
 
     threads = [
-        threading.Thread(target=peer.gen_adv_peer_list, daemon=True),
-        threading.Thread(target=peer.get_data, daemon=True)
+        threading.Thread(target=peer.advertising_listener, daemon=True),
+        threading.Thread(target=peer.data_requests_listener, daemon=True)
     ]
 
     for thread in threads:

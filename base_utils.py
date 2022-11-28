@@ -14,6 +14,7 @@ CONSUMER_PORT_COMPAT = 33302  # Port consumer expects requested data to come in 
 # Data size threshold after which we use a direct peer transfer instead of going through the router
 LARGE_DATA_THRESHOLD = 40
 PAYLOAD_TOO_LARGE_STRING = "HTTP/1.1 413 Payload Too Large"
+MULTIPLE_CHOICES_STRING = "HTTP/1.1 300 Multiple Choices"
 
 ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_ADVERTISING_PORT_COMPAT), (ROUTER_IP_1, ROUTER_ADVERTISING_PORT_COMPAT)]
 INTEREST_ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_REQUEST_PORT_COMPAT), (ROUTER_IP_1, ROUTER_REQUEST_PORT_COMPAT)]

@@ -53,9 +53,9 @@ def send_raw_data(host, port, data):
 # Listen for data requests
 def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((get_host(socket), PRODUCER_PORT_COMPAT))
         s.listen(5)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         while RUNNING:
             conn, addr = s.accept()
             with conn:
@@ -65,18 +65,23 @@ def listen():
                 requested_data = decrypt_msg(raw_data)
                 split_data = requested_data.split()
                 if len(split_data) > 1:
-                    requested_data, consumer_host = split_data
+                    requested_data = split_data[0]
+                    consumer_host = split_data[1]
+
+                # Whether a direct transfer was requested
+                direct_transfer = split_data[2] if len(split_data) > 2 else False
+
                 print(f'Data {requested_data} was requested')
 
                 # Gather the data
                 [vehicle_string, datatype] = requested_data.split('/')
-                vehicle_num = re.findall(r'\d+', vehicle_string)[0]
+                vehicle_num = re.findall(r'\d+|\*', vehicle_string)[0]
                 vehicle_type = vehicle_string.replace(vehicle_num, '')
-                data_to_send = f'{requested_data} {generate_data(vehicle_type, datatype)}' if VEHICLE_TYPE == vehicle_type else ""
+                data_to_send = f'{VEHICLE_TYPE}{VEHICLE_NUM}/{datatype} {generate_data(vehicle_type, datatype)}' if VEHICLE_TYPE == vehicle_type else ""
 
                 # If data too large send p2p to consumer
                 # We check we were sent IP to be compatible with common protocol
-                if len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD:
+                if direct_transfer or (len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD):
                     print("Data too large, sending directly...")
                     send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
                     # Send large data directly to peer on separate thread
