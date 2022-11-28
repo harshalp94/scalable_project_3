@@ -62,6 +62,15 @@ def process_data(data):
         #    print(f'Vehicle {vehicle} needs maintenance.')
         # if vehicle_property == "track_temperature" and int(datavalue) > 50:
         #    print(f'Track temperature for train {vehicle} is too high.')
+    [datatype, datavalue] = data.split(' ')
+    [vehicle, vehicle_property] = datatype.split('/')
+
+    if vehicle_property == "fuel_sensor" and int((datavalue.replace('%', ''))) < 10:
+        print(f'Less than 10% of fuel left for vehicle {vehicle}.')
+    if vehicle_property == "maintain" and datavalue == 'True':
+        print(f'Vehicle {vehicle} needs maintenance.')
+    if vehicle_property == "track_temperature" and int(datavalue) > 50:
+        print(f'Track temperature for train {vehicle} is too high.')
 
 
 def main():
