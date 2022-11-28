@@ -64,7 +64,7 @@ class Peer:
                     print("Data not found!")
                     send_err_ack(conn)
                 else:
-                    received_data = self.request_data_from_producer(filtered_ips, interest, addr)
+                    received_data = self.request_data_from_producer(filtered_ips, interest, addr[0])
                     send_data_to_cons(received_data, conn)
                 conn.close()
             except TimeoutError:
@@ -79,18 +79,18 @@ class Peer:
         except Exception as exp:
             print("ERROR IN REMOVING NODE")
 
-    def request_data_from_producer(self, peer_list, command, consumer_address):
+    def request_data_from_producer(self, peer_list, command, consumer_host):
         """Send sensor data to all peers."""
         print("What is peer list and command :{} {}".format(peer_list, command))
         for peer in peer_list:
-            print(f"Data requested by {consumer_address}")
+            print(f"Data requested by {consumer_host}")
             print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
             try:
                 # Request data from producer
+                msg = f'{command} {consumer_host}'
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((peer, PRODUCER_PORT_COMPAT))
-                encrypted_message = encrypt_msg(command)
-                print(f'WE ARE ASKING THIS:: {encrypted_message}')
+                encrypted_message = encrypt_msg(msg)
                 s.send(encrypted_message)
                 received_data = s.recv(1024)
 

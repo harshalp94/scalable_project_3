@@ -43,6 +43,7 @@ def send_advertising_data(ROUTER_TUPLE, data):
 
 # Send data using tcp sockets
 def send_raw_data(host, port, data):
+    print(f'We are sending {data} to {host}:{port}')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(3)
         s.connect((host, port))
@@ -63,27 +64,27 @@ def listen():
                     print(f"Connection started by {addr}")
 
                     raw_data = conn.recv(1024)
-                    print("Raw data received:", raw_data)
-                    data = decrypt_msg(raw_data)
-                    split_data = data.split()
-                    if len(split_data) > 2:
-                        data, consumer_host, consumer_port = split_data
-                    print(f'Data {data} was requested')
+                    requested_data = decrypt_msg(raw_data)
+                    split_data = requested_data.split()
+                    if len(split_data) > 1:
+                        requested_data, consumer_host = split_data
+                    print(f'Data {requested_data} was requested')
 
                     # Gather the data
-                    [vehicle_type, datatype] = data.split('/')
-                    data = generate_data(vehicle_type, datatype) if VEHICLE_TYPE == vehicle_type else ""
+                    [vehicle_type, datatype] = requested_data.split('/')
+                    data_to_send = f'{requested_data} {generate_data(vehicle_type, datatype)}' if VEHICLE_TYPE == vehicle_type else ""
 
                     # If data too large send p2p to consumer
                     # We check we were sent IP to be compatible with common protocol
-                    if len(split_data) > 2 and len(data) > LARGE_DATA_THRESHOLD:
+                    if len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD:
                         print("Data too large, sending directly...")
                         send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
                         # Send large data directly to peer on separate thread
-                        threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
+                        threading.Thread(target=send_raw_data,
+                                         args=(consumer_host, CONSUMER_PORT_COMPAT, data_to_send)).start()
                     else:
-                        send_data_back(conn, data)
-                        print("We sent the data back:", data)
+                        send_data_back(conn, data_to_send)
+                        print("We sent the data back:", data_to_send)
             except TimeoutError:
                 continue
 
@@ -147,7 +148,6 @@ def generate_data(vehicle, specific_type):
 # Send requested data back to router on same connection
 def send_data_back(conn, data):
     try:
-        print(f'Encrypted data: {encrypt_msg(data)}')
         conn.send(encrypt_msg(data))
     except Exception as e:
         print(f'Exception while sending data to router: {e}')

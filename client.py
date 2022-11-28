@@ -6,8 +6,6 @@ from base_utils import *
 
 RUNNING = True
 
-requested_types = {}
-
 
 def send_msg(msg):
     for tries in range(2):
@@ -29,7 +27,6 @@ def request_data(data_type):
     print(f'Answer from router: {answer}')
     if answer == PAYLOAD_TOO_LARGE_STRING:
         print("Data too large, waiting for direct connection")
-        requested_types.add(data_type)
     else:
         process_data(answer)
 
@@ -46,15 +43,15 @@ def listen():
                     data = conn.recv(1024)
                     if not data:
                         continue
-                    requested_types.pop()
-                    threading.Thread(target=process_data, args=(data,), daemon=True).start()
+                    decrypted_data = decrypt_msg(data)
+                    threading.Thread(target=process_data, args=(decrypted_data,), daemon=True).start()
             except TimeoutError:
                 continue
 
 
 # TODO this is where we would do something fancy with the received data
 def process_data(data):
-    print(f'Received data {data}')
+    print(f'Received data: {data}')
 
 
 def main():
