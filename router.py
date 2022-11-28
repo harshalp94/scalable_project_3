@@ -32,6 +32,7 @@ class Peer:
             host = dataMessage[1]
             port = int(dataMessage[3])
             peer = (host, port, action_list)
+            #self.remove_producer(host)
             if peer not in self.peers:
                 self.peers.add(peer)
                 print('Known Public transport Vehicles:', self.peers)
@@ -55,72 +56,65 @@ class Peer:
             # print(utf_data, " to actuate on")
             interest = decrypted.lower()
             print("Final interest", interest)
-            filtered_ips = filter_ips(interest)
-            if filtered_ips is None:
+            #filtered_ips = map_dict[interest]
+            if interest not in map_dict:
                 print("Data not found!")
                 send_err_ack(conn)
             else:
-                received_data = self.request_data_from_producer(filtered_ips, interest, addr[0])
+                received_data = self.request_data_from_producer(map_dict[interest], interest, addr[0])
                 send_data_to_cons(received_data, conn)
             conn.close()
 
-    def remove_node(self, node, command):
-        try:
-            print("REMOVING NODE", node)
-            if node in map_dict[command]:
-                map_dict[command].remove(node)
-            print("UPDATED MAP DICT", tabular_display(map_dict))
-        except Exception as exp:
-            print("ERROR IN REMOVING NODE")
+    # def remove_producer(self, host):
+    #     for key, val in map_dict:
+    #         if host in val:
+    #             val.remove(host)
+    #
+    # def remove_node(self, node, command):
+    #     try:
+    #         print("REMOVING NODE", node)
+    #         if node in map_dict[command]:
+    #             map_dict[command].remove(node)
+    #         print("UPDATED MAP DICT", tabular_display(map_dict))
+    #     except Exception as exp:
+    #         print("ERROR IN REMOVING NODE")
 
-    def request_data_from_producer(self, peer_list, command, consumer_host):
+    def request_data_from_producer(self, peer, command, consumer_host):
         """Send sensor data to all peers."""
-        print("What is peer list and command :{} {}".format(peer_list, command))
-        for peer in peer_list:
-            print(f"Data requested by {consumer_host}")
-            print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
-            try:
-                # Request data from producer
-                msg = f'{command} {consumer_host}'
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((peer, PRODUCER_PORT_COMPAT))
-                encrypted_message = encrypt_msg(msg)
-                s.send(encrypted_message)
-                received_data = s.recv(1024)
+        print("What is peer and command :{} {}".format(peer, command))
+        print(f"Data requested by {consumer_host}")
+        print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
+        try:
+            # Request data from producer
+            msg = f'{command} {consumer_host}'
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((peer, PRODUCER_PORT_COMPAT))
+            encrypted_message = encrypt_msg(msg)
+            s.send(encrypted_message)
+            received_data = s.recv(1024)
 
-                print("Data received:", received_data)
-                decoded_data = decrypt_msg(received_data)
-                print("Decoded data:", decoded_data)
-                s.close()
-                return decoded_data
-            except Exception as e:
-                print("An exception occurred requesting data", e)
-                continue
-                # self.remove_node(peer,command)
+            print("Data received:", received_data)
+            decoded_data = decrypt_msg(received_data)
+            print("Decoded data:", decoded_data)
+            s.close()
+            return decoded_data
+        except Exception as e:
+            print("An exception occurred requesting data", e)
+            # self.remove_node(peer,command)
 
     def add_adv_peer(self):
-        empty_set = set()
-        count = 1
+        #count = 1
         for peer in self.peers:
             host = peer[0]
             action_list = peer[2].split(',')
             for action in action_list:
-                if action in map_dict.keys():
-                    temp_set = map_dict[action]
-                    temp_set.add(host)
-                    map_dict[action] = temp_set
-                else:
-                    empty_set.add(host)
-                    map_dict[action] = empty_set
-            count += 1
-        print("What is router table now", tabular_display(map_dict))
+                map_dict[action] = host
+            #count += 1
+        #print("What is router table now", tabular_display(map_dict))
 
 
-def filter_ips(data):
-    if data in map_dict.keys():
-        return map_dict[data]
-    else:
-        return None
+# def filter_ips(data):
+#         return map_dict[data]
 
 
 def send_err_ack(conn):
