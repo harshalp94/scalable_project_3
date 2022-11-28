@@ -27,8 +27,7 @@ class Peer:
             try:
                 conn, addr = s.accept()
                 data = conn.recv(1024)
-
-                data = decrypt_msg(data.decode())
+                data = decrypt_msg(data)
                 dataMessage = data.split(' ')
                 action_list = split_str(data.split('ACTION '))
                 host = dataMessage[1]
@@ -55,43 +54,21 @@ class Peer:
                 print("connection: ", str(conn))
                 data = conn.recv(1024)
                 print("Received data", data)
-
-                print("Data After Decryption", data)
-                utf_data = decrypt_msg(data.decode())
-                print("Decoded data", utf_data)
-                base64_decode = decrypt_msg(utf_data)
-                print("Base 64 decode data", base64_decode)
+                decrypted = decrypt_msg(data)
+                print("Base 64 decode data", decrypted)
                 # print(utf_data, " to actuate on")
-                interest = base64_decode.lower()
+                interest = decrypted.lower()
                 print("Final interest", interest)
-                filtered_ips = self.filter_ips(interest)
+                filtered_ips = filter_ips(interest)
                 if filtered_ips is None:
                     print("Data not found!")
-                    self.send_err_ack(addr[0], conn)
+                    send_err_ack(conn)
                 else:
-                    received_data = self.send_sensor_data(filtered_ips, interest, addr)
-                    self.send_data_to_cons(received_data, addr[0], conn)
+                    received_data = self.request_data_from_producer(filtered_ips, interest, addr)
+                    send_data_to_cons(received_data, conn)
                 conn.close()
             except TimeoutError:
                 continue
-
-    def filter_ips(data):
-        if data in map_dict.keys():
-            return map_dict[data]
-        else:
-            return None
-
-    def send_err_ack(conn):
-        msg = "404 not found"
-        encoded_msg = str(encrypt_msg(msg)).encode()
-        conn.send(encoded_msg)
-        return
-
-    def send_data_to_cons(message, conn):
-        encoded_msg = str(encrypt_msg(message)).encode()
-        print(f'Sending data to consumer... {encoded_msg}')
-        conn.send(encoded_msg)
-        return
 
     def remove_node(self, node, command):
         try:
@@ -102,22 +79,23 @@ class Peer:
         except Exception as exp:
             print("ERROR IN REMOVING NODE")
 
-    def send_sensor_data(self, peer_list, command, consumer_address):
+    def request_data_from_producer(self, peer_list, command, consumer_address):
         """Send sensor data to all peers."""
         print("What is peer list and command :{} {}".format(peer_list, command))
         for peer in peer_list:
             print(f"Data requested by {consumer_address}")
             print(f"Requesting {command} from {peer}:{PRODUCER_PORT_COMPAT}")
             try:
+                # Request data from producer
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((peer, PRODUCER_PORT_COMPAT))
-                encoded_message = str(encrypt_msg(command)).encode()
-                s.send(encoded_message)
+                encrypted_message = encrypt_msg(command)
+                print(f'WE ARE ASKING THIS:: {encrypted_message}')
+                s.send(encrypted_message)
                 received_data = s.recv(1024)
 
                 print("Data received:", received_data)
-                utf_decode = received_data.decode()
-                decoded_data = decrypt_msg(utf_decode)
+                decoded_data = decrypt_msg(received_data)
                 print("Decoded data:", decoded_data)
                 s.close()
                 return decoded_data
@@ -142,6 +120,27 @@ class Peer:
                     map_dict[action] = empty_set
             count += 1
         print("What is router table now", tabular_display(map_dict))
+
+
+def filter_ips(data):
+    if data in map_dict.keys():
+        return map_dict[data]
+    else:
+        return None
+
+
+def send_err_ack(conn):
+    msg = "404 not found"
+    encoded_msg = encrypt_msg(msg)
+    conn.send(encoded_msg)
+    return
+
+
+def send_data_to_cons(message, conn):
+    encoded_msg = encrypt_msg(message)
+    print(f'Sending data to consumer... {encoded_msg}')
+    conn.send(encoded_msg)
+    return
 
 
 def main():

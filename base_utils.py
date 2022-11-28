@@ -4,7 +4,6 @@ from cryptography.fernet import Fernet
 # ROUTER_HOST = '10.35.70.24' # For testing on Pi
 ROUTER_HOST = '127.0.0.1'  # For testing locally
 ROUTER_IP_1 = '10.35.70.31'
-from cryptography.fernet import Fernet
 
 # Set of ports that are compatible with common protocol
 ROUTER_ADVERTISING_PORT_COMPAT = 33334  # Port router expects to receive advertising messages on
@@ -49,19 +48,19 @@ def get_host(socket):
     return socket.gethostbyname(hostname)
 
 
+# Take string, return encrypted byte array
 def encrypt_msg(to_encode):
     ascii_encoded = to_encode.encode("ascii")
     base64_bytes = base64.b64encode(ascii_encoded)
-    base64_string = base64_bytes.decode("ascii")
-    return cipher_suite.encrypt(base64_string)
+    encrypted = cipher_suite.encrypt(base64_bytes)
+    return encrypted
 
 
+# Take a byte array, decrypt and return string
 def decrypt_msg(to_decode):
-    base64_bytes = to_decode.encode("ascii")
-    sample_string_bytes = base64.b64decode(base64_bytes)
-    sample_string = sample_string_bytes.decode("ascii")
-
-    return cipher_suite.decrypt(sample_string)
+    decrypted = cipher_suite.decrypt(to_decode)
+    sample_string_bytes = base64.b64decode(decrypted)
+    return sample_string_bytes.decode("ascii")
 
 
 def tabular_display(temp_dict):

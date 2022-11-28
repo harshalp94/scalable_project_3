@@ -37,7 +37,7 @@ def send_advertising_data(ROUTER_TUPLE, data):
             print(f'Advertising to {router_host}:{router_port}')
             send_raw_data(router_host, router_port, data)
             break
-        except Exception:
+        except Exception as e:
             continue
 
 
@@ -46,7 +46,9 @@ def send_raw_data(host, port, data):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(3)
         s.connect((host, port))
-        s.sendall(encrypt_msg(data.encode()))
+        ligma = encrypt_msg(data)
+        s.sendall(ligma)
+
 
 # Listen for data requests
 def listen():
@@ -62,36 +64,36 @@ def listen():
 
                     raw_data = conn.recv(1024)
                     print("Raw data received:", raw_data)
-                    data = decrypt_msg(raw_data.decode())
+                    data = decrypt_msg(raw_data)
                     split_data = data.split()
                     if len(split_data) > 2:
                         data, consumer_host, consumer_port = split_data
                     print(f'Data {data} was requested')
 
-                # Gather the data
-                [vehicle_type, datatype] = data.split('/')
-                data = generate_data(datatype) if VEHICLE_TYPE == vehicle_type else ""
+                    # Gather the data
+                    [vehicle_type, datatype] = data.split('/')
+                    data = generate_data(vehicle_type, datatype) if VEHICLE_TYPE == vehicle_type else ""
 
-                # If data too large send p2p to consumer
-                # We check we were sent IP to be compatible with common protocol
-                if len(split_data) > 2 and len(data) > LARGE_DATA_THRESHOLD:
-                    send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
-                    # Send large data directly to peer on separate thread
-                    threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
-                else:
-                    send_data_back(conn, data)
-                    print("We sent the data back:", data)
+                    # If data too large send p2p to consumer
+                    # We check we were sent IP to be compatible with common protocol
+                    if len(split_data) > 2 and len(data) > LARGE_DATA_THRESHOLD:
+                        print("Data too large, sending directly...")
+                        send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
+                        # Send large data directly to peer on separate thread
+                        threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
+                    else:
+                        send_data_back(conn, data)
+                        print("We sent the data back:", data)
             except TimeoutError:
                 continue
 
 
-
 def generate_boolean():
-    return random.choice('True', 'False')
+    return random.choice(['True', 'False'])
 
 
 def generate_destination():
-    return random.choice('Harbour', 'City Hall', 'College')
+    return random.choice(['Harbour', 'City Hall', 'College'])
 
 
 def generate_temperature():
@@ -103,7 +105,7 @@ def generate_track_position():
 
 
 def generate_gps_position():
-    return str(random.randint(-9000, 9000)/100) + ',' + str(random.randint(-9000, 9000)/100)
+    return str(random.randint(-9000, 9000) / 100) + ',' + str(random.randint(-9000, 9000) / 100)
 
 
 def generate_percentage():
@@ -114,8 +116,7 @@ def generate_integer():
     return str(random.randint(0, 300))
 
 
-def generate_data(datatype):
-    [vehicle, specific_type] = datatype.split('/')
+def generate_data(vehicle, specific_type):
     if specific_type == 'waiting':
         return generate_boolean()
     elif specific_type == 'maintain':
@@ -129,7 +130,7 @@ def generate_data(datatype):
     elif specific_type == 'locomotive':
         return generate_boolean()
     elif specific_type == 'position':
-        if vehicle == 'train' | vehicle == 'metro' | vehicle == 'tram':
+        if vehicle == 'train' or vehicle == 'metro' or vehicle == 'tram':
             return generate_track_position()
         else:
             return generate_gps_position()
@@ -140,51 +141,16 @@ def generate_data(datatype):
     elif specific_type == 'destination':
         return generate_destination()
     else:
-        print('Error: data type ' + datatype + ' not known')
+        print(f'Error: data type {vehicle}/{specific_type} not known')
+
 
 # Send requested data back to router on same connection
 def send_data_back(conn, data):
     try:
-        conn.send(encrypt_msg(data).encode())
+        print(f'Encrypted data: {encrypt_msg(data)}')
+        conn.send(encrypt_msg(data))
     except Exception as e:
         print(f'Exception while sending data to router: {e}')
-
-
-# Listen for data requests
-def listen():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((get_host(socket), PRODUCER_PORT_COMPAT))
-        s.listen(5)
-        s.settimeout(3)
-        while RUNNING:
-            try:
-                conn, addr = s.accept()
-                with conn:
-                    print(f"Connection started by {addr}")
-
-                    raw_data = conn.recv(1024)
-                    print("Raw data received:", raw_data)
-                    data = decrypt_msg(raw_data.decode())
-                    split_data = data.split()
-                    if len(split_data) > 2:
-                        data, consumer_host, consumer_port = split_data
-                    print(f'Data {data} was requested')
-
-                # Gather the data
-                [vehicle_type, datatype] = data.split('/')
-                data = generate_data(datatype) if VEHICLE_TYPE == vehicle_type else ""
-
-                # If data too large send p2p to consumer
-                # We check we were sent IP to be compatible with common protocol
-                if len(split_data) > 2 and len(data) > LARGE_DATA_THRESHOLD:
-                    send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
-                    # Send large data directly to peer on separate thread
-                    threading.Thread(target=send_raw_data, args=(consumer_host, consumer_port, data))
-                else:
-                    send_data_back(conn, data)
-                    print("We sent the data back:", data)
-            except TimeoutError:
-                continue
 
 
 def main():

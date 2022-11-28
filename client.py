@@ -4,7 +4,6 @@ import socket
 import threading
 from base_utils import *
 
-
 RUNNING = True
 
 requested_types = {}
@@ -16,22 +15,18 @@ def send_msg(msg):
             router_host, router_port = INTEREST_ROUTER_TUPLE[tries]
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((router_host, router_port))
-            s.send(str(encrypt_msg(msg)).encode())
+            s.send(encrypt_msg(msg))
             answer = s.recv(1024)
-            answer = decrypt_msg(answer)
+            decrypted = decrypt_msg(answer)
             s.close()
-            if answer:
-                return decrypt_msg(answer.decode('utf-8'))
-            else:
-                return None
-
+            return decrypted
         except Exception as exp:
             print(exp)
 
 
-
 def request_data(data_type):
     answer = send_msg(data_type)
+    print(f'Answer from router: {answer}')
     if answer == PAYLOAD_TOO_LARGE_STRING:
         print("Data too large, waiting for direct connection")
         requested_types.add(data_type)
