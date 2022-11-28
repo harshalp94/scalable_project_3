@@ -73,10 +73,7 @@ def main():
         except KeyboardInterrupt:
             RUNNING = False
 
-    print("Shutting down, please wait 3 seconds...")
-
-    # Make sure we release socket binds properly
-    # listen_thread.join()
+    print("Shutting down...")
 
 
 if __name__ == '__main__':

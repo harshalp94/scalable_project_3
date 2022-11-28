@@ -155,17 +155,10 @@ def main():
     try:
         while RUNNING:
             pass
-        # input('Enter quit or press Ctrl-C to stop program\n')
     except KeyboardInterrupt:
         pass
 
-    print("Shutting down, please wait 3 seconds...")
-
-    # Make sure we release socket binds properly
-    RUNNING = False
-    # Wait for threads to quit
-    # for thread in threads:
-    #    thread.join()
+    print("Shutting down...")
 
 
 if __name__ == '__main__':

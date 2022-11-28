@@ -161,20 +161,14 @@ def main():
         thread.start()
 
     # Run until user input
+    global RUNNING
     try:
-        input('Enter quit or press Ctrl-C to stop program\n')
+        while RUNNING:
+            pass
     except KeyboardInterrupt:
         pass
 
-    print("Shutting down, please wait 3 seconds...")
-
-    # Make sure we release socket binds properly
-    global RUNNING
-    RUNNING = False
-    # Wait for threads to quit
-    # for thread in threads:
-    #    thread.join()
-    threads[1].join()
+    print("Shutting down...")
 
 
 if __name__ == '__main__':
