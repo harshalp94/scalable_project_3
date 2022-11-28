@@ -133,7 +133,7 @@ def generate_data(vehicle, specific_type):
             return generate_track_position()
         else:
             return generate_gps_position()
-    elif specific_type == 'fuel':
+    elif specific_type == 'fuel_sensor':
         return generate_percentage()
     elif specific_type == 'passengers':
         return generate_integer()

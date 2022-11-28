@@ -50,8 +50,9 @@ def listen():
 # TODO this is where we would do something fancy with the received data
 def process_data(data):
     [datatype, datavalue] = data.split(' ')
-    [vehicle, vehicle_property] = datatype.split(',')
-    if vehicle_property == "fuel_sensor" and int(datavalue.split('%')[0]) < 10:
+    [vehicle, vehicle_property] = datatype.split('/')
+
+    if vehicle_property == "fuel_sensor" and int((datavalue.replace('%', ''))) < 10:
         print(f'Less than 10% of fuel left for vehicle {vehicle}.')
     if vehicle_property == "maintain" and datavalue == 'True':
         print(f'Vehicle {vehicle} needs maintenance.')
