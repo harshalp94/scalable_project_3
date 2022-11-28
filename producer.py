@@ -5,12 +5,10 @@ import threading
 import time
 import random
 from base_utils import *
-from cryptography.fernet import Fernet
 
 RUNNING = True
 VEHICLE_TYPE = VEHICLES[0]
 
-cipher_suite = Fernet(ENCRYPTION_KEY)
 
 # Tell router what type of data we are producing, every x seconds
 def advertise(delay):
@@ -48,7 +46,7 @@ def send_raw_data(host, port, data):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(3)
         s.connect((host, port))
-        s.sendall(cipher_suite.encrypt(data.encode()))
+        s.sendall(encrypt_msg(data.encode()))
 
 # Listen for data requests
 def listen():
@@ -63,9 +61,8 @@ def listen():
                     print(f"Connection started by {addr}")
 
                     raw_data = conn.recv(1024)
-                    raw_data = cipher_suite.decrypt(raw_data)
                     print("Raw data received:", raw_data)
-                    data = decode_msg(raw_data.decode())
+                    data = decrypt_msg(raw_data.decode())
                     split_data = data.split()
                     if len(split_data) > 2:
                         data, consumer_host, consumer_port = split_data
@@ -148,7 +145,7 @@ def generate_data(datatype):
 # Send requested data back to router on same connection
 def send_data_back(conn, data):
     try:
-        conn.send(encode_msg(data).encode())
+        conn.send(encrypt_msg(data).encode())
     except Exception as e:
         print(f'Exception while sending data to router: {e}')
 
@@ -167,7 +164,7 @@ def listen():
 
                     raw_data = conn.recv(1024)
                     print("Raw data received:", raw_data)
-                    data = decode_msg(raw_data.decode())
+                    data = decrypt_msg(raw_data.decode())
                     split_data = data.split()
                     if len(split_data) > 2:
                         data, consumer_host, consumer_port = split_data

@@ -3,45 +3,35 @@
 import socket
 import threading
 from base_utils import *
-from cryptography.fernet import Fernet
+
 
 RUNNING = True
-
-cipher_suite = Fernet(ENCRYPTION_KEY)
-
 
 requested_types = {}
 
 
-def send(msg):
-    try:
-        router_host, router_port = INTEREST_ROUTER_TUPLE[0]
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((router_host, router_port))
-        s.send(cipher_suite.encrypt(str(encode_msg(msg)).encode()))
-        answer = s.recv(1024)
-        answer = cipher_suite.decrypt(answer)
-        s.close()
-        if answer:
-            return decode_msg(answer.decode('utf-8'))
-        else:
-            return None
-    except Exception:
-        router_host, router_port = INTEREST_ROUTER_TUPLE[1]
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((router_host, router_port))
-        s.send(cipher_suite.encrypt(str(encode_msg(msg)).encode()))
-        answer = s.recv(1024)
-        answer = cipher_suite.decrypt(answer)
-        s.close()
-        if answer:
-            return decode_msg(answer.decode('utf-8'))
-        else:
-            return None
+def send_msg(msg):
+    for tries in range(2):
+        try:
+            router_host, router_port = INTEREST_ROUTER_TUPLE[tries]
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((router_host, router_port))
+            s.send(str(encrypt_msg(msg)).encode())
+            answer = s.recv(1024)
+            answer = decrypt_msg(answer)
+            s.close()
+            if answer:
+                return decrypt_msg(answer.decode('utf-8'))
+            else:
+                return None
+
+        except Exception as exp:
+            print(exp)
+
 
 
 def request_data(data_type):
-    answer = send(data_type)
+    answer = send_msg(data_type)
     if answer == PAYLOAD_TOO_LARGE_STRING:
         print("Data too large, waiting for direct connection")
         requested_types.add(data_type)
