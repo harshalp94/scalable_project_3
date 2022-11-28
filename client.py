@@ -35,18 +35,15 @@ def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('', CONSUMER_PORT_COMPAT))
         s.listen(5)
-        s.settimeout(3)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         while RUNNING:
-            try:
-                conn, addr = s.accept()
-                with conn:
-                    data = conn.recv(1024)
-                    if not data:
-                        continue
-                    decrypted_data = decrypt_msg(data)
-                    threading.Thread(target=process_data, args=(decrypted_data,), daemon=True).start()
-            except TimeoutError:
-                continue
+            conn, addr = s.accept()
+            with conn:
+                data = conn.recv(1024)
+                if not data:
+                    continue
+                decrypted_data = decrypt_msg(data)
+                threading.Thread(target=process_data, args=(decrypted_data,), daemon=True).start()
 
 
 # TODO this is where we would do something fancy with the received data
@@ -55,7 +52,7 @@ def process_data(data):
 
 
 def main():
-    listen_thread = threading.Thread(target=listen)
+    listen_thread = threading.Thread(target=listen, daemon=True)
     listen_thread.start()
 
     global RUNNING
@@ -79,7 +76,7 @@ def main():
     print("Shutting down, please wait 3 seconds...")
 
     # Make sure we release socket binds properly
-    listen_thread.join()
+    # listen_thread.join()
 
 
 if __name__ == '__main__':

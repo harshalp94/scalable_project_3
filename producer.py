@@ -37,7 +37,7 @@ def send_advertising_data(ROUTER_TUPLE, data):
             print(f'Advertising to {router_host}:{router_port}')
             send_raw_data(router_host, router_port, data)
             break
-        except Exception as e:
+        except Exception:
             continue
 
 
@@ -45,10 +45,9 @@ def send_advertising_data(ROUTER_TUPLE, data):
 def send_raw_data(host, port, data):
     print(f'We are sending {data} to {host}:{port}')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(3)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.connect((host, port))
-        ligma = encrypt_msg(data)
-        s.sendall(ligma)
+        s.sendall(encrypt_msg(data))
 
 
 # Listen for data requests
@@ -56,37 +55,34 @@ def listen():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((get_host(socket), PRODUCER_PORT_COMPAT))
         s.listen(5)
-        s.settimeout(3)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         while RUNNING:
-            try:
-                conn, addr = s.accept()
-                with conn:
-                    print(f"Connection started by {addr}")
+            conn, addr = s.accept()
+            with conn:
+                print(f"Connection started by {addr}")
 
-                    raw_data = conn.recv(1024)
-                    requested_data = decrypt_msg(raw_data)
-                    split_data = requested_data.split()
-                    if len(split_data) > 1:
-                        requested_data, consumer_host = split_data
-                    print(f'Data {requested_data} was requested')
+                raw_data = conn.recv(1024)
+                requested_data = decrypt_msg(raw_data)
+                split_data = requested_data.split()
+                if len(split_data) > 1:
+                    requested_data, consumer_host = split_data
+                print(f'Data {requested_data} was requested')
 
-                    # Gather the data
-                    [vehicle_type, datatype] = requested_data.split('/')
-                    data_to_send = f'{requested_data} {generate_data(vehicle_type, datatype)}' if VEHICLE_TYPE == vehicle_type else ""
+                # Gather the data
+                [vehicle_type, datatype] = requested_data.split('/')
+                data_to_send = f'{requested_data} {generate_data(vehicle_type, datatype)}' if VEHICLE_TYPE == vehicle_type else ""
 
-                    # If data too large send p2p to consumer
-                    # We check we were sent IP to be compatible with common protocol
-                    if len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD:
-                        print("Data too large, sending directly...")
-                        send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
-                        # Send large data directly to peer on separate thread
-                        threading.Thread(target=send_raw_data,
-                                         args=(consumer_host, CONSUMER_PORT_COMPAT, data_to_send)).start()
-                    else:
-                        send_data_back(conn, data_to_send)
-                        print("We sent the data back:", data_to_send)
-            except TimeoutError:
-                continue
+                # If data too large send p2p to consumer
+                # We check we were sent IP to be compatible with common protocol
+                if len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD:
+                    print("Data too large, sending directly...")
+                    send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
+                    # Send large data directly to peer on separate thread
+                    threading.Thread(target=send_raw_data,
+                                     args=(consumer_host, CONSUMER_PORT_COMPAT, data_to_send)).start()
+                else:
+                    send_data_back(conn, data_to_send)
+                    print("We sent the data back:", data_to_send)
 
 
 def generate_boolean():
@@ -156,9 +152,9 @@ def send_data_back(conn, data):
 def main():
     threads = [
         # Listen for data requests from the router
-        threading.Thread(target=listen),
+        threading.Thread(target=listen, daemon=True),
         # Tell the router what type of data we are collecting
-        threading.Thread(target=advertise, args=(10,)),
+        threading.Thread(target=advertise, args=(10,), daemon=True),
     ]
 
     for thread in threads:
@@ -176,8 +172,9 @@ def main():
     global RUNNING
     RUNNING = False
     # Wait for threads to quit
-    for thread in threads:
-        thread.join()
+    # for thread in threads:
+    #    thread.join()
+    threads[1].join()
 
 
 if __name__ == '__main__':

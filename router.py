@@ -21,54 +21,48 @@ class Peer:
         """Update peers list on receipt of their address broadcast."""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(('', ROUTER_ADVERTISING_PORT_COMPAT))
-        s.settimeout(3)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.listen(5)
         while RUNNING:
-            try:
-                conn, addr = s.accept()
-                data = conn.recv(1024)
-                data = decrypt_msg(data)
-                dataMessage = data.split(' ')
-                action_list = split_str(data.split('ACTION '))
-                host = dataMessage[1]
-                port = int(dataMessage[3])
-                peer = (host, port, action_list)
-                if peer not in self.peers:
-                    self.peers.add(peer)
-                    print('Known Public transport Vehicles:', self.peers)
-                    self.add_adv_peer()
-            except TimeoutError:
-                continue
+            conn, addr = s.accept()
+            data = conn.recv(1024)
+            data = decrypt_msg(data)
+            dataMessage = data.split(' ')
+            action_list = split_str(data.split('ACTION '))
+            host = dataMessage[1]
+            port = int(dataMessage[3])
+            peer = (host, port, action_list)
+            if peer not in self.peers:
+                self.peers.add(peer)
+                print('Known Public transport Vehicles:', self.peers)
+                self.add_adv_peer()
 
     def get_data(self):
         """Listen on own port for other peer data."""
         print("Listening for data requests...")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(('', ROUTER_REQUEST_PORT_COMPAT))
-        s.settimeout(3)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.listen(5)
         while RUNNING:
-            try:
-                conn, addr = s.accept()
-                print("addr: ", addr[0])
-                print("connection: ", str(conn))
-                data = conn.recv(1024)
-                print("Received data", data)
-                decrypted = decrypt_msg(data)
-                print("Base 64 decode data", decrypted)
-                # print(utf_data, " to actuate on")
-                interest = decrypted.lower()
-                print("Final interest", interest)
-                filtered_ips = filter_ips(interest)
-                if filtered_ips is None:
-                    print("Data not found!")
-                    send_err_ack(conn)
-                else:
-                    received_data = self.request_data_from_producer(filtered_ips, interest, addr[0])
-                    send_data_to_cons(received_data, conn)
-                conn.close()
-            except TimeoutError:
-                continue
+            conn, addr = s.accept()
+            print("addr: ", addr[0])
+            print("connection: ", str(conn))
+            data = conn.recv(1024)
+            print("Received data", data)
+            decrypted = decrypt_msg(data)
+            print("Base 64 decode data", decrypted)
+            # print(utf_data, " to actuate on")
+            interest = decrypted.lower()
+            print("Final interest", interest)
+            filtered_ips = filter_ips(interest)
+            if filtered_ips is None:
+                print("Data not found!")
+                send_err_ack(conn)
+            else:
+                received_data = self.request_data_from_producer(filtered_ips, interest, addr[0])
+                send_data_to_cons(received_data, conn)
+            conn.close()
 
     def remove_node(self, node, command):
         try:
@@ -149,8 +143,8 @@ def main():
     peer = Peer(host, PRODUCER_PORT_COMPAT)
 
     threads = [
-        threading.Thread(target=peer.gen_adv_peer_list),
-        threading.Thread(target=peer.get_data)
+        threading.Thread(target=peer.gen_adv_peer_list, daemon=True),
+        threading.Thread(target=peer.get_data, daemon=True)
     ]
 
     for thread in threads:
@@ -170,8 +164,8 @@ def main():
     # Make sure we release socket binds properly
     RUNNING = False
     # Wait for threads to quit
-    for thread in threads:
-        thread.join()
+    # for thread in threads:
+    #    thread.join()
 
 
 if __name__ == '__main__':
