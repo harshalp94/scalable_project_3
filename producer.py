@@ -1,40 +1,40 @@
 #!/usr/bin/env python3
 
+import sys
 import socket
 import threading
 import time
 import random
+import re
 from base_utils import *
 
 RUNNING = True
+# Vehicle type can be passed in as first command-line argument
 VEHICLE_TYPE = VEHICLES[0]
+# Vehicle number can be passed in as second command-line argument
+VEHICLE_NUM = 1
 
 
 # Tell router what type of data we are producing, every x seconds
 def advertise(delay):
-    index = 0
     while RUNNING:
-        # TODO we can send multiple types of data at once, comma-delimited
-        # We should also only send data of the same type as this vehicle
-        datatypes = VEHICLE_TYPE + "/" + DATA_TYPES[VEHICLE_TYPE][index]
-        data = f'HOST {get_host(socket)} PORT {PRODUCER_PORT_COMPAT} ACTION {datatypes}'
-        print(f'Advertising producing {datatypes}')
+        advertising_message = f'HOST {get_host(socket)} PORT {PRODUCER_PORT_COMPAT} ACTION '
+        for data_type in DATA_TYPES[VEHICLE_TYPE]:
+            advertising_message += f'{VEHICLE_TYPE}{VEHICLE_NUM}/{data_type},'
+        advertising_message = advertising_message[:-1]  # Remove trailing comma
         try:
-            send_advertising_data(ROUTER_TUPLE, data)
+            send_advertising_data(ROUTER_TUPLE, advertising_message)
         except Exception as e:
             print(f"Failed to advertise {e}")
 
-        index += 1
-        if index >= len(DATA_TYPES):
-            index = 0
         time.sleep(delay)
 
 
-def send_advertising_data(ROUTER_TUPLE, data):
+def send_advertising_data(router_tuple, data):
     for tries in range(2):
         try:
-            router_host, router_port = ROUTER_TUPLE[tries]
-            print(f'Advertising to {router_host}:{router_port}')
+            router_host, router_port = router_tuple[tries]
+            print(f'Advertising {data} {router_host}:{router_port}')
             send_raw_data(router_host, router_port, data)
             break
         except Exception:
@@ -69,7 +69,9 @@ def listen():
                 print(f'Data {requested_data} was requested')
 
                 # Gather the data
-                [vehicle_type, datatype] = requested_data.split('/')
+                [vehicle_string, datatype] = requested_data.split('/')
+                vehicle_num = re.findall(r'\d+', vehicle_string)[0]
+                vehicle_type = vehicle_string.replace(vehicle_num, '')
                 data_to_send = f'{requested_data} {generate_data(vehicle_type, datatype)}' if VEHICLE_TYPE == vehicle_type else ""
 
                 # If data too large send p2p to consumer
@@ -150,6 +152,27 @@ def send_data_back(conn, data):
 
 
 def main():
+    global VEHICLE_TYPE
+    # Take vehicle type as first command-line argument
+    if len(sys.argv) > 1:
+        vehicle_type = sys.argv[1]
+        if vehicle_type in VEHICLES:
+            VEHICLE_TYPE = vehicle_type
+            print(f'Set vehicle type to {vehicle_type}')
+        else:
+            print(f'Unknown vehicle type {vehicle_type}, defaulting to {VEHICLE_TYPE}')
+
+    # Take vehicle number as second command-line argument
+    global VEHICLE_NUM
+    if len(sys.argv) > 2:
+        vehicle_number = sys.argv[2]
+        try:
+            number = int(vehicle_number)
+            VEHICLE_NUM = number
+            print(f'Set vehicle number to {number}')
+        except ValueError:
+            print(f'Unknown vehicle number {vehicle_number}, defaulting to {VEHICLE_NUM}')
+
     threads = [
         # Listen for data requests from the router
         threading.Thread(target=listen, daemon=True),

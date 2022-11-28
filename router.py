@@ -32,11 +32,13 @@ class Peer:
             host = dataMessage[1]
             port = int(dataMessage[3])
             peer = (host, port, action_list)
-            #self.remove_producer(host)
+
             if peer not in self.peers:
                 self.peers.add(peer)
                 print('Known Public transport Vehicles:', self.peers)
                 self.add_adv_peer()
+            else:
+                print(f'Peer {host} already known')
 
     def get_data(self):
         """Listen on own port for other peer data."""
@@ -56,7 +58,7 @@ class Peer:
             # print(utf_data, " to actuate on")
             interest = decrypted.lower()
             print("Final interest", interest)
-            #filtered_ips = map_dict[interest]
+            # filtered_ips = map_dict[interest]
             if interest not in map_dict:
                 print("Data not found!")
                 send_err_ack(conn)
@@ -64,20 +66,6 @@ class Peer:
                 received_data = self.request_data_from_producer(map_dict[interest], interest, addr[0])
                 send_data_to_cons(received_data, conn)
             conn.close()
-
-    # def remove_producer(self, host):
-    #     for key, val in map_dict:
-    #         if host in val:
-    #             val.remove(host)
-    #
-    # def remove_node(self, node, command):
-    #     try:
-    #         print("REMOVING NODE", node)
-    #         if node in map_dict[command]:
-    #             map_dict[command].remove(node)
-    #         print("UPDATED MAP DICT", tabular_display(map_dict))
-    #     except Exception as exp:
-    #         print("ERROR IN REMOVING NODE")
 
     def request_data_from_producer(self, peer, command, consumer_host):
         """Send sensor data to all peers."""
@@ -103,18 +91,11 @@ class Peer:
             # self.remove_node(peer,command)
 
     def add_adv_peer(self):
-        #count = 1
         for peer in self.peers:
             host = peer[0]
             action_list = peer[2].split(',')
             for action in action_list:
                 map_dict[action] = host
-            #count += 1
-        #print("What is router table now", tabular_display(map_dict))
-
-
-# def filter_ips(data):
-#         return map_dict[data]
 
 
 def send_err_ack(conn):

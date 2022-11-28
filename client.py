@@ -2,6 +2,7 @@
 
 import socket
 import threading
+import re
 from base_utils import *
 
 RUNNING = True
@@ -58,17 +59,23 @@ def main():
     global RUNNING
     while RUNNING:
         try:
-            vehicle = input("Enter vehicle to gather data about (help for possible types): ")
-            while vehicle not in VEHICLES:
+            vehicle_string = input("Enter vehicle to gather data about (help for possible types): ")
+            vehicle_num = re.findall(r'\d+', vehicle_string)[0]
+            vehicle_type = vehicle_string.replace(vehicle_num, '')
+
+            while vehicle_type not in VEHICLES:
                 print("Possible vehicles: " + ', '.join(str(e) for e in VEHICLES))
-                vehicle = input("Enter vehicle to gather data about (help for possible types):")
+                vehicle_string = input("Enter vehicle to gather data about (help for possible types):")
+                vehicle_num = re.findall(r'\d+', vehicle_string)[0]
+                vehicle_type = vehicle_string.replace(vehicle_num, '')
+
             data_type = input("Enter data to gather (help for possible types): ")
-            vehicle_data_types = DATA_TYPES[vehicle]
+            vehicle_data_types = DATA_TYPES[vehicle_type]
             while data_type not in vehicle_data_types:
                 print("Possible data types: " + ', '.join(str(e) for e in vehicle_data_types))
                 data_type = input("Enter data type (help for possible types): ")
 
-            data_name = f'{vehicle}/{data_type}'
+            data_name = f'{vehicle_string}/{data_type}'
             request_data(data_name)
         except KeyboardInterrupt:
             RUNNING = False

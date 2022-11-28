@@ -12,7 +12,7 @@ PRODUCER_PORT_COMPAT = 33301  # Port the producer expects requests to come in fr
 CONSUMER_PORT_COMPAT = 33302  # Port consumer expects requested data to come in from
 
 # Data size threshold after which we use a direct peer transfer instead of going through the router
-LARGE_DATA_THRESHOLD = 20
+LARGE_DATA_THRESHOLD = 40
 PAYLOAD_TOO_LARGE_STRING = "HTTP/1.1 413 Payload Too Large"
 
 ROUTER_TUPLE = [(ROUTER_HOST, ROUTER_ADVERTISING_PORT_COMPAT), (ROUTER_IP_1, ROUTER_ADVERTISING_PORT_COMPAT)]
