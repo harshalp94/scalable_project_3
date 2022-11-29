@@ -81,7 +81,7 @@ def listen():
 
                 # If data too large send p2p to consumer
                 # We check we were sent IP to be compatible with common protocol
-                if (direct_transfer or (len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD)) == True:
+                if (len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD) == True:
                     print("Data too large, sending directly...")
                     send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
                     # Send large data directly to peer on separate thread
