@@ -64,12 +64,10 @@ def listen():
                 raw_data = conn.recv(1024)
                 requested_data = decrypt_msg(raw_data)
                 split_data = requested_data.split()
+                consumer_host = None
                 if len(split_data) > 1:
                     requested_data = split_data[0]
                     consumer_host = split_data[1]
-
-                # Whether a direct transfer was requested
-                direct_transfer = split_data[2] if len(split_data) > 2 else False
 
                 print(f'Data {requested_data} was requested')
 
@@ -77,16 +75,23 @@ def listen():
                 [vehicle_string, datatype] = requested_data.split('/')
                 vehicle_num = re.findall(r'\d+|\*', vehicle_string)[0]
                 vehicle_type = vehicle_string.replace(vehicle_num, '')
-                data_to_send = f'{VEHICLE_TYPE}{VEHICLE_NUM}/{datatype} {generate_data(vehicle_type, datatype)}' if VEHICLE_TYPE == vehicle_type else ""
+                data_to_send = ""
+                if VEHICLE_TYPE == vehicle_type:
+                    data_to_send = f'{VEHICLE_TYPE}{VEHICLE_NUM}/{datatype} {generate_data(vehicle_type, datatype)}'\
+
+                # Whether a direct transfer was requested
+                # Apparently string 'False' is True in python -> want to kms
+                direct_transfer = split_data[2] == 'True' if (len(split_data) > 2) else False
+                if not direct_transfer:
+                    direct_transfer = consumer_host is not None and len(data_to_send) > LARGE_DATA_THRESHOLD
 
                 # If data too large send p2p to consumer
                 # We check we were sent IP to be compatible with common protocol
-                if (len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD) == True:
-                    print("Data too large, sending directly...")
+                if direct_transfer:
+                    print("Sending via direct transfer...")
                     send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
                     # Send large data directly to peer on separate thread
-                    threading.Thread(target=send_raw_data,
-                                     args=(consumer_host, CONSUMER_PORT_COMPAT, data_to_send)).start()
+                    threading.Thread(target=send_raw_data,args=(consumer_host, CONSUMER_PORT_COMPAT, data_to_send)).start()
                 else:
                     send_data_back(conn, data_to_send)
                     print("We sent the data back:", data_to_send)

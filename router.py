@@ -109,7 +109,10 @@ class Peer:
                 send_err_ack(conn)
             elif len(found_producers) <= 1:
                 received_data = request_data_from_producer(found_producers.popitem()[1], interest, addr[0])
-                send_data_to_cons(received_data, conn)
+                if received_data is None or received_data == '':
+                    send_err_ack(conn)
+                else:
+                    send_data_to_cons(received_data, conn)
             else:
                 # Multiple data requests, send via direct transfer
                 send_data_to_cons(MULTIPLE_CHOICES_STRING, conn)
