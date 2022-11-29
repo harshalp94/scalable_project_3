@@ -81,7 +81,7 @@ def listen():
 
                 # If data too large send p2p to consumer
                 # We check we were sent IP to be compatible with common protocol
-                if direct_transfer or (len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD):
+                if (direct_transfer or (len(split_data) > 1 and len(data_to_send) > LARGE_DATA_THRESHOLD)) == True:
                     print("Data too large, sending directly...")
                     send_data_back(conn, PAYLOAD_TOO_LARGE_STRING)
                     # Send large data directly to peer on separate thread
@@ -97,7 +97,7 @@ def generate_boolean():
 
 
 def generate_destination():
-    return random.choice(['Harbour', 'City Hall', 'College'])
+    return random.choice(['Harbour', 'City Hall', 'College', 'Trinity_College_Dublin,Dublin_2'])
 
 
 def generate_temperature():
