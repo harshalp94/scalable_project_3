@@ -102,7 +102,7 @@ def generate_boolean():
 
 
 def generate_destination():
-    return random.choice(['Harbour', 'City Hall', 'College', 'Trinity_College_Dublin,Dublin_2'])
+    return random.choice(['Harbour', 'City_Hall', 'College', 'Trinity_College_Dublin,Dublin_2', 'Liv_Student,four_courts'])
 
 
 def generate_temperature():

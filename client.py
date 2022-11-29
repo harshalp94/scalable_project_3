@@ -19,8 +19,9 @@ def send_msg(msg):
             decrypted = decrypt_msg(answer)
             s.close()
             return decrypted
-        except Exception as exp:
-            print(exp)
+        except Exception:
+            continue
+
 
 
 def request_data(data_type):
