@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# author: Tobias Klumpp
 import socket
 import threading
 import re
